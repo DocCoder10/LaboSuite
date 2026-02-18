@@ -16,6 +16,22 @@ function getBackendPath() {
         : path.resolve(__dirname, '..', 'backend');
 }
 
+function getRuntimeDataPaths(backendPath) {
+    if (!app.isPackaged) {
+        return {
+            databasePath: path.join(backendPath, 'database', 'database.sqlite'),
+            storagePath: path.join(backendPath, 'storage'),
+        };
+    }
+
+    const dataRoot = path.join(app.getPath('userData'), 'laravel');
+
+    return {
+        databasePath: path.join(dataRoot, 'database', 'database.sqlite'),
+        storagePath: path.join(dataRoot, 'storage'),
+    };
+}
+
 function resolvePhpBinary() {
     if (process.env.LMS_PHP_BIN) {
         return process.env.LMS_PHP_BIN;
@@ -93,25 +109,52 @@ function waitForHealth(url, timeoutMs = 25000) {
     });
 }
 
-function ensureDatabaseFile(backendPath) {
-    const dbPath = path.join(backendPath, 'database', 'database.sqlite');
+function ensureRuntimePaths(runtimePaths) {
+    fs.mkdirSync(path.dirname(runtimePaths.databasePath), { recursive: true });
 
-    if (!fs.existsSync(dbPath)) {
-        fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-        fs.writeFileSync(dbPath, '', { encoding: 'utf8' });
+    if (!fs.existsSync(runtimePaths.databasePath)) {
+        fs.writeFileSync(runtimePaths.databasePath, '', { encoding: 'utf8' });
     }
+
+    const requiredStorageDirs = [
+        path.join(runtimePaths.storagePath, 'app'),
+        path.join(runtimePaths.storagePath, 'framework', 'cache', 'data'),
+        path.join(runtimePaths.storagePath, 'framework', 'sessions'),
+        path.join(runtimePaths.storagePath, 'framework', 'views'),
+        path.join(runtimePaths.storagePath, 'logs'),
+    ];
+
+    requiredStorageDirs.forEach((dirPath) => {
+        fs.mkdirSync(dirPath, { recursive: true });
+    });
 }
 
-async function runArtisan(phpBin, backendPath, args) {
+function buildBackendEnv(runtimePaths) {
+    const env = {
+        ...process.env,
+        APP_ENV: app.isPackaged ? 'production' : process.env.APP_ENV ?? 'local',
+        APP_DEBUG: app.isPackaged ? 'false' : process.env.APP_DEBUG ?? 'true',
+        DB_CONNECTION: 'sqlite',
+        DB_DATABASE: runtimePaths.databasePath,
+        LARAVEL_STORAGE_PATH: runtimePaths.storagePath,
+    };
+
+    if (app.isPackaged) {
+        env.SESSION_DRIVER = 'file';
+        env.CACHE_STORE = 'file';
+        env.QUEUE_CONNECTION = 'sync';
+        env.LOG_CHANNEL = 'daily';
+    }
+
+    return env;
+}
+
+async function runArtisan(phpBin, backendPath, args, backendEnv) {
     return new Promise((resolve, reject) => {
         const processRef = spawn(phpBin, ['artisan', ...args], {
             cwd: backendPath,
             stdio: 'pipe',
-            env: {
-                ...process.env,
-                APP_ENV: app.isPackaged ? 'production' : process.env.APP_ENV ?? 'local',
-                APP_DEBUG: app.isPackaged ? 'false' : process.env.APP_DEBUG ?? 'true',
-            },
+            env: backendEnv,
         });
 
         let stderr = '';
@@ -136,16 +179,20 @@ async function runArtisan(phpBin, backendPath, args) {
 async function startBackend() {
     const backendPath = getBackendPath();
     const phpBin = resolvePhpBinary();
+    const runtimePaths = getRuntimeDataPaths(backendPath);
 
-    ensureDatabaseFile(backendPath);
+    ensureRuntimePaths(runtimePaths);
+    const backendEnv = buildBackendEnv(runtimePaths);
 
     if (app.isPackaged && !fs.existsSync(phpBin)) {
         throw new Error(`Embedded PHP runtime not found at ${phpBin}.`);
     }
 
     backendPort = await findFreePort();
+    const appUrl = `http://${BACKEND_HOST}:${backendPort}`;
+    backendEnv.APP_URL = appUrl;
 
-    await runArtisan(phpBin, backendPath, ['migrate', '--force', '--seed']);
+    await runArtisan(phpBin, backendPath, ['migrate', '--force', '--seed'], backendEnv);
 
     backendProcess = spawn(
         phpBin,
@@ -153,11 +200,7 @@ async function startBackend() {
         {
             cwd: backendPath,
             stdio: 'pipe',
-            env: {
-                ...process.env,
-                APP_ENV: app.isPackaged ? 'production' : process.env.APP_ENV ?? 'local',
-                APP_DEBUG: app.isPackaged ? 'false' : process.env.APP_DEBUG ?? 'true',
-            },
+            env: backendEnv,
         },
     );
 
@@ -173,7 +216,6 @@ async function startBackend() {
         console.error('Backend process error:', error);
     });
 
-    const appUrl = `http://${BACKEND_HOST}:${backendPort}`;
     await waitForHealth(appUrl);
 
     return appUrl;

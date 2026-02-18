@@ -18,9 +18,16 @@ Route::get('/analyses/{analysis}/print', [AnalysisController::class, 'print'])->
 
 Route::get('/catalog', [CatalogController::class, 'index'])->name('catalog.index');
 Route::post('/catalog/disciplines', [CatalogController::class, 'storeDiscipline'])->name('catalog.disciplines.store');
+Route::put('/catalog/disciplines/{discipline}', [CatalogController::class, 'updateDiscipline'])->name('catalog.disciplines.update');
+Route::delete('/catalog/disciplines/{discipline}', [CatalogController::class, 'destroyDiscipline'])->name('catalog.disciplines.destroy');
 Route::post('/catalog/categories', [CatalogController::class, 'storeCategory'])->name('catalog.categories.store');
+Route::put('/catalog/categories/{category}', [CatalogController::class, 'updateCategory'])->name('catalog.categories.update');
+Route::delete('/catalog/categories/{category}', [CatalogController::class, 'destroyCategory'])->name('catalog.categories.destroy');
 Route::post('/catalog/subcategories', [CatalogController::class, 'storeSubcategory'])->name('catalog.subcategories.store');
+Route::put('/catalog/subcategories/{subcategory}', [CatalogController::class, 'updateSubcategory'])->name('catalog.subcategories.update');
+Route::delete('/catalog/subcategories/{subcategory}', [CatalogController::class, 'destroySubcategory'])->name('catalog.subcategories.destroy');
 Route::post('/catalog/parameters', [CatalogController::class, 'storeParameter'])->name('catalog.parameters.store');
+Route::put('/catalog/parameters/{parameter}', [CatalogController::class, 'updateParameter'])->name('catalog.parameters.update');
 Route::delete('/catalog/parameters/{parameter}', [CatalogController::class, 'destroyParameter'])->name('catalog.parameters.destroy');
 
 Route::get('/settings', [SettingController::class, 'edit'])->name('settings.edit');

@@ -249,6 +249,32 @@ body.lms-body {
     width: 140px;
 }
 
+.lms-table input,
+.lms-table select {
+    width: 100%;
+    min-width: 8rem;
+    border: 1px solid var(--lms-border);
+    border-radius: 8px;
+    padding: 0.35rem 0.45rem;
+    background: #ffffff;
+    font-size: 0.82rem;
+}
+
+.lms-table-editor th,
+.lms-table-editor td {
+    white-space: nowrap;
+}
+
+.lms-table-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.lms-checkbox-compact {
+    justify-content: center;
+}
+
 .lms-report-head {
     display: flex;
     justify-content: space-between;
@@ -314,6 +340,10 @@ body.lms-body {
     padding: 0.45rem 0.8rem;
 }
 
+body.lms-print-body {
+    margin: 0;
+}
+
 @media (max-width: 1024px) {
     .lms-topbar {
         grid-template-columns: 1fr;
@@ -330,18 +360,45 @@ body.lms-body {
     }
 }
 
+@page {
+    size: A4 portrait;
+    margin: 10mm;
+}
+
 @media print {
     .no-print {
         display: none !important;
+    }
+
+    html,
+    body {
+        width: 210mm;
+        min-height: 297mm;
+        margin: 0;
     }
 
     body {
         background: #ffffff;
     }
 
+    .lms-print-body {
+        background: #ffffff;
+    }
+
     .lms-report {
+        width: 100%;
+        max-width: 100%;
         border: 0;
         box-shadow: none;
         padding: 0;
+    }
+
+    .lms-report-head,
+    .lms-report-discipline,
+    .lms-report-category,
+    .lms-report-table,
+    .lms-report-notes,
+    .lms-report-footer {
+        break-inside: avoid;
     }
 }

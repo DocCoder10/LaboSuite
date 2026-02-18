@@ -16,9 +16,9 @@
   - Dynamic result field generation
   - Save analysis
   - Report preview
-  - Print/PDF via Chromium print dialog
+  - Print/PDF via Chromium print dialog (A4 enforced by print CSS)
 - Config pages:
-  - Catalog management (create entries, delete parameter)
+  - Catalog management (full CRUD + display ordering)
   - Lab identity + report layout settings
 - Localization:
   - FR / EN / AR switch from UI
@@ -44,10 +44,14 @@ npm run start
 ```
 
 Electron will:
-1. Ensure SQLite file exists
+1. Ensure SQLite + Laravel storage paths exist
 2. Run `php artisan migrate --force --seed`
 3. Start Laravel local server
 4. Open desktop window
+
+Runtime data paths:
+- Dev mode: `backend/database/database.sqlite` and `backend/storage`
+- Packaged mode: Electron `userData` directory under `laravel/database/database.sqlite` and `laravel/storage`
 
 ## Windows Packaging (NSIS)
 1. Build backend assets first:
@@ -67,6 +71,12 @@ php artisan optimize
 ```bash
 cd app
 npm run dist:win
+```
+
+Quick packaging validation (current OS target):
+```bash
+cd app
+npm run pack
 ```
 
 Generated installer: `app/dist/LaboSuite-LMS-Setup-<version>.exe`
