@@ -10,6 +10,12 @@ let backendPort;
 
 const BACKEND_HOST = '127.0.0.1';
 
+if (process.platform === 'linux') {
+    // Wayland/Vulkan can prevent window rendering on some distros.
+    app.disableHardwareAcceleration();
+    app.commandLine.appendSwitch('disable-gpu');
+}
+
 function getBackendPath() {
     return app.isPackaged
         ? path.join(process.resourcesPath, 'backend')
@@ -192,6 +198,8 @@ async function startBackend() {
     const appUrl = `http://${BACKEND_HOST}:${backendPort}`;
     backendEnv.APP_URL = appUrl;
 
+    // Prevent stale compiled views/routes/config from previous app sessions.
+    await runArtisan(phpBin, backendPath, ['optimize:clear'], backendEnv);
     await runArtisan(phpBin, backendPath, ['migrate', '--force', '--seed'], backendEnv);
 
     backendProcess = spawn(
@@ -238,6 +246,7 @@ async function createWindow() {
         minWidth: 1200,
         minHeight: 760,
         show: false,
+        backgroundColor: '#f8fafc',
         autoHideMenuBar: true,
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
@@ -252,10 +261,32 @@ async function createWindow() {
         return { action: 'deny' };
     });
 
-    await mainWindow.loadURL(appUrl);
-    mainWindow.once('ready-to-show', () => {
+    let isShown = false;
+    const revealWindow = () => {
+        if (isShown || !mainWindow) {
+            return;
+        }
+
+        isShown = true;
         mainWindow.show();
+        mainWindow.focus();
+    };
+
+    // Normal path.
+    mainWindow.once('ready-to-show', revealWindow);
+    // Fallback if ready-to-show is never emitted on some GPU/WM stacks.
+    mainWindow.webContents.once('did-finish-load', revealWindow);
+    mainWindow.webContents.on('did-fail-load', (_event, code, description, validatedUrl) => {
+        console.error(`Renderer failed loading (${code}) ${description} at ${validatedUrl}`);
+        revealWindow();
     });
+
+    const revealTimeout = setTimeout(revealWindow, 4000);
+    mainWindow.once('closed', () => {
+        clearTimeout(revealTimeout);
+    });
+
+    await mainWindow.loadURL(appUrl);
 }
 
 app.whenReady()

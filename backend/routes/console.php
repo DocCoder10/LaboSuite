@@ -94,9 +94,7 @@ Artisan::command('lms:import-legacy-analyses {path : Absolute or relative path t
                     'code' => lms_unique_code('discipline', $disciplineName, fn (string $code) => Discipline::query()->where('code', $code)->exists()),
                     'name' => $disciplineName,
                     'labels' => [
-                        'en' => $disciplineName,
                         'fr' => $disciplineName,
-                        'ar' => $disciplineName,
                     ],
                     'sort_order' => $disciplineOrder * 10,
                     'is_active' => true,
@@ -118,9 +116,7 @@ Artisan::command('lms:import-legacy-analyses {path : Absolute or relative path t
                     'code' => lms_unique_code('category', $name, fn (string $code) => Category::query()->where('code', $code)->exists()),
                     'name' => $name,
                     'labels' => [
-                        'en' => $name,
                         'fr' => $name,
-                        'ar' => $name,
                     ],
                     'sort_order' => $categoryOrder * 10,
                     'is_active' => true,
@@ -273,9 +269,7 @@ if (! function_exists('lms_create_parameter_from_legacy')) {
             'code' => lms_unique_code('param', $discipline->name.'-'.$category->name.'-'.$name, $codeExists),
             'name' => $name,
             'labels' => [
-                'en' => $name,
                 'fr' => $name,
-                'ar' => $name,
             ],
             'unit' => $unit,
             'value_type' => $valueType,

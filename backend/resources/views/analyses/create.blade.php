@@ -27,7 +27,9 @@
                 </label>
                 <label class="lms-field">
                     <span>{{ __('messages.sex') }}</span>
-                    @php($selectedSex = old('patient.sex', $draftPatient['sex'] ?? 'male'))
+                    @php
+                        $selectedSex = old('patient.sex', $draftPatient['sex'] ?? 'male');
+                    @endphp
                     <select name="patient[sex]" required>
                         <option value="male" @selected($selectedSex === 'male')>{{ __('messages.male') }}</option>
                         <option value="female" @selected($selectedSex === 'female')>{{ __('messages.female') }}</option>
@@ -59,7 +61,9 @@
                         <h4>{{ $discipline->label($locale) }}</h4>
                         @foreach ($discipline->categories as $category)
                             <label class="lms-checkbox">
-                                @php($isChecked = in_array($category->id, old('selected_categories', $draftSelectedCategories)))
+                                @php
+                                    $isChecked = in_array($category->id, old('selected_categories', $draftSelectedCategories));
+                                @endphp
                                 <input type="checkbox" name="selected_categories[]" value="{{ $category->id }}" @checked($isChecked)>
                                 <span>{{ $category->label($locale) }}</span>
                             </label>

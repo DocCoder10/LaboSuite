@@ -13,14 +13,7 @@ class SetLocale
      */
     public function handle(Request $request, Closure $next)
     {
-        $locale = $request->session()->get('locale', config('app.locale'));
-        $supported = ['en', 'fr', 'ar'];
-
-        if (! in_array($locale, $supported, true)) {
-            $locale = config('app.fallback_locale', 'en');
-        }
-
-        App::setLocale($locale);
+        App::setLocale('fr');
 
         return $next($request);
     }

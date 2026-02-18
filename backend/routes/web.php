@@ -2,13 +2,10 @@
 
 use App\Http\Controllers\AnalysisController;
 use App\Http\Controllers\CatalogController;
-use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\SettingController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/analyses');
-
-Route::get('/lang/{locale}', [LocaleController::class, 'switch'])->name('locale.switch');
 
 Route::get('/analyses', [AnalysisController::class, 'index'])->name('analyses.index');
 Route::get('/analyses/new', [AnalysisController::class, 'create'])->name('analyses.create');

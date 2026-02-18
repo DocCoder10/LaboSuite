@@ -9,6 +9,7 @@ use App\Models\LabAnalysis;
 use App\Models\LabParameter;
 use App\Models\LabSetting;
 use App\Models\Patient;
+use App\Models\Subcategory;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -263,6 +264,7 @@ class AnalysisController extends Controller
             'results.parameter.discipline',
             'results.parameter.category',
             'results.parameter.subcategory',
+            'results.parameter.subcategory.parent',
             'categories.discipline',
         ]);
 
@@ -276,6 +278,7 @@ class AnalysisController extends Controller
             'results.parameter.discipline',
             'results.parameter.category',
             'results.parameter.subcategory',
+            'results.parameter.subcategory.parent',
             'categories.discipline',
         ]);
 
@@ -424,6 +427,7 @@ class AnalysisController extends Controller
         $locale = app()->getLocale();
         $layout = LabSetting::getValue('report_layout', []);
         $identity = LabSetting::getValue('lab_identity', []);
+        $showUnitColumn = (bool) ($layout['show_unit_column'] ?? false);
 
         $groups = [];
 
@@ -468,16 +472,22 @@ class AnalysisController extends Controller
                 $groups[$disciplineId]['categories'][$categoryId]['subcategories'][$subcategoryId] = [
                     'id' => $subcategory?->id,
                     'label' => $subcategory?->label($locale),
+                    'lineage' => $this->resolveSubcategoryLineage($subcategory, $locale),
                     'sort_order' => $subcategory?->sort_order ?? 0,
                     'rows' => [],
                 ];
             }
 
-            $resultValue = $result->result_value;
-            $showUnitColumn = (bool) ($layout['show_unit_column'] ?? false);
+            $resultValue = trim((string) $result->result_value);
 
             if (! $showUnitColumn && $parameter->unit) {
                 $resultValue = trim($resultValue.' '.$parameter->unit);
+            }
+
+            $abnormalFlag = $this->resolveAbnormalFlag($parameter, $result);
+
+            if ($abnormalFlag !== null) {
+                $resultValue = trim($resultValue.' '.$abnormalFlag);
             }
 
             $groups[$disciplineId]['categories'][$categoryId]['subcategories'][$subcategoryId]['rows'][] = [
@@ -486,6 +496,8 @@ class AnalysisController extends Controller
                 'reference' => $parameter->referenceRange(),
                 'unit' => $showUnitColumn ? ($parameter->unit ?: '-') : null,
                 'is_abnormal' => $result->is_abnormal,
+                'abnormal_flag' => $abnormalFlag,
+                'sort_order' => $parameter->sort_order,
             ];
         }
 
@@ -497,6 +509,14 @@ class AnalysisController extends Controller
                     ->map(function (array $category) {
                         $category['subcategories'] = collect($category['subcategories'])
                             ->sortBy('sort_order')
+                            ->map(function (array $subcategory) {
+                                $subcategory['rows'] = collect($subcategory['rows'])
+                                    ->sortBy('sort_order')
+                                    ->values()
+                                    ->all();
+
+                                return $subcategory;
+                            })
                             ->values()
                             ->all();
 
@@ -539,5 +559,60 @@ class AnalysisController extends Controller
         }
 
         return false;
+    }
+
+    /**
+     * @return array<int, array{id:int, label:string, depth:int, sort_order:int}>
+     */
+    private function resolveSubcategoryLineage(?Subcategory $subcategory, string $locale): array
+    {
+        if (! $subcategory) {
+            return [];
+        }
+
+        $lineage = [];
+        $cursor = $subcategory;
+
+        while ($cursor) {
+            $lineage[] = [
+                'id' => (int) $cursor->id,
+                'label' => $cursor->label($locale),
+                'depth' => (int) $cursor->depth,
+                'sort_order' => (int) $cursor->sort_order,
+            ];
+
+            if (! $cursor->relationLoaded('parent')) {
+                $cursor->load('parent');
+            }
+
+            $cursor = $cursor->parent;
+        }
+
+        return array_reverse($lineage);
+    }
+
+    private function resolveAbnormalFlag(LabParameter $parameter, AnalysisResult $result): ?string
+    {
+        if ($parameter->value_type !== 'number') {
+            return null;
+        }
+
+        $numericValue = $result->result_numeric !== null
+            ? (float) $result->result_numeric
+            : (is_numeric($result->result_value ?? null) ? (float) $result->result_value : null);
+
+        if ($numericValue === null) {
+            return null;
+        }
+
+        if ($parameter->normal_min !== null && $numericValue < (float) $parameter->normal_min) {
+            return 'L';
+        }
+
+        if ($parameter->normal_max !== null && $numericValue > (float) $parameter->normal_max) {
+            return 'H';
+        }
+
+        return null;
     }
 }

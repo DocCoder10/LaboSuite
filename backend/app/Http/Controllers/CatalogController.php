@@ -8,60 +8,92 @@ use App\Models\LabParameter;
 use App\Models\Subcategory;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class CatalogController extends Controller
 {
+    private const MAX_TREE_LEVEL = 5;
+
+    private const MAX_SUBCATEGORY_DEPTH = 2;
+
     public function index(): View
     {
+        $disciplines = Discipline::query()
+            ->with([
+                'categories' => fn ($categoryQuery) => $categoryQuery
+                    ->orderBy('sort_order')
+                    ->orderBy('name')
+                    ->with([
+                        'subcategories' => fn ($subcategoryQuery) => $subcategoryQuery
+                            ->whereNull('parent_subcategory_id')
+                            ->orderBy('sort_order')
+                            ->orderBy('name')
+                            ->with([
+                                'children' => fn ($childQuery) => $childQuery
+                                    ->orderBy('sort_order')
+                                    ->orderBy('name')
+                                    ->with([
+                                        'parameters' => fn ($parameterQuery) => $parameterQuery
+                                            ->orderBy('sort_order')
+                                            ->orderBy('name'),
+                                    ]),
+                                'parameters' => fn ($parameterQuery) => $parameterQuery
+                                    ->orderBy('sort_order')
+                                    ->orderBy('name'),
+                            ]),
+                        'parameters' => fn ($parameterQuery) => $parameterQuery
+                            ->whereNull('subcategory_id')
+                            ->orderBy('sort_order')
+                            ->orderBy('name'),
+                    ]),
+            ])
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+
+        $categories = Category::query()
+            ->with('discipline')
+            ->orderBy('discipline_id')
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+
+        $subcategories = Subcategory::query()
+            ->with(['category.discipline', 'parent'])
+            ->orderBy('category_id')
+            ->orderBy('depth')
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+
         return view('catalog.index', [
-            'disciplines' => Discipline::query()
-                ->orderBy('sort_order')
-                ->orderBy('name')
-                ->get(),
-            'categories' => Category::query()
-                ->with('discipline')
-                ->orderBy('discipline_id')
-                ->orderBy('sort_order')
-                ->orderBy('name')
-                ->get(),
-            'subcategories' => Subcategory::query()
-                ->with(['category.discipline'])
-                ->orderBy('category_id')
-                ->orderBy('sort_order')
-                ->orderBy('name')
-                ->get(),
-            'parameters' => LabParameter::query()
-                ->with(['discipline', 'category', 'subcategory'])
-                ->orderBy('discipline_id')
-                ->orderBy('category_id')
-                ->orderByRaw('CASE WHEN subcategory_id IS NULL THEN 0 ELSE 1 END')
-                ->orderBy('subcategory_id')
-                ->orderBy('sort_order')
-                ->orderBy('name')
-                ->paginate(20),
+            'disciplines' => $disciplines,
+            'categories' => $categories,
+            'subcategories' => $subcategories,
         ]);
     }
 
     public function storeDiscipline(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'code' => ['required', 'string', 'max:60', 'unique:disciplines,code'],
             'name' => ['required', 'string', 'max:120'],
-            'label_fr' => ['nullable', 'string', 'max:120'],
-            'label_ar' => ['nullable', 'string', 'max:120'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
         ]);
 
+        $name = trim($data['name']);
+        $this->assertUniqueDisciplineName($name);
+
         Discipline::query()->create([
-            'code' => $data['code'],
-            'name' => $data['name'],
-            'labels' => [
-                'en' => $data['name'],
-                'fr' => $data['label_fr'] ?? $data['name'],
-                'ar' => $data['label_ar'] ?? $data['name'],
-            ],
+            'code' => $this->generateUniqueCode(
+                'discipline',
+                $name,
+                fn (string $code) => Discipline::query()->where('code', $code)->exists(),
+            ),
+            'name' => $name,
+            'labels' => $this->buildLabels($name),
             'sort_order' => $data['sort_order'] ?? 0,
             'is_active' => true,
         ]);
@@ -72,18 +104,17 @@ class CatalogController extends Controller
     public function updateDiscipline(Request $request, Discipline $discipline): RedirectResponse
     {
         $data = $request->validate([
-            'code' => ['required', 'string', 'max:60', Rule::unique('disciplines', 'code')->ignore($discipline->id)],
             'name' => ['required', 'string', 'max:120'],
-            'label_fr' => ['nullable', 'string', 'max:120'],
-            'label_ar' => ['nullable', 'string', 'max:120'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
         ]);
 
+        $name = trim($data['name']);
+        $this->assertUniqueDisciplineName($name, $discipline->id);
+
         $discipline->update([
-            'code' => $data['code'],
-            'name' => $data['name'],
-            'labels' => $this->buildLabels($data),
+            'name' => $name,
+            'labels' => $this->buildLabels($name),
             'sort_order' => $data['sort_order'] ?? 0,
             'is_active' => $request->boolean('is_active'),
         ]);
@@ -93,6 +124,12 @@ class CatalogController extends Controller
 
     public function destroyDiscipline(Discipline $discipline): RedirectResponse
     {
+        if ($discipline->categories()->exists() || $discipline->parameters()->exists()) {
+            return back()->withErrors([
+                'catalog' => __('messages.catalog_delete_has_children'),
+            ]);
+        }
+
         $discipline->delete();
 
         return back()->with('status', __('messages.catalog_saved'));
@@ -102,18 +139,24 @@ class CatalogController extends Controller
     {
         $data = $request->validate([
             'discipline_id' => ['required', 'exists:disciplines,id'],
-            'code' => ['required', 'string', 'max:60', 'unique:categories,code'],
             'name' => ['required', 'string', 'max:120'],
-            'label_fr' => ['nullable', 'string', 'max:120'],
-            'label_ar' => ['nullable', 'string', 'max:120'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
         ]);
 
+        $name = trim($data['name']);
+        $disciplineId = (int) $data['discipline_id'];
+
+        $this->assertUniqueCategoryName($disciplineId, $name);
+
         Category::query()->create([
-            'discipline_id' => (int) $data['discipline_id'],
-            'code' => $data['code'],
-            'name' => $data['name'],
-            'labels' => $this->buildLabels($data),
+            'discipline_id' => $disciplineId,
+            'code' => $this->generateUniqueCode(
+                'categorie',
+                $name,
+                fn (string $code) => Category::query()->where('code', $code)->exists(),
+            ),
+            'name' => $name,
+            'labels' => $this->buildLabels($name),
             'sort_order' => $data['sort_order'] ?? 0,
             'is_active' => true,
         ]);
@@ -125,28 +168,45 @@ class CatalogController extends Controller
     {
         $data = $request->validate([
             'discipline_id' => ['required', 'exists:disciplines,id'],
-            'code' => ['required', 'string', 'max:60', Rule::unique('categories', 'code')->ignore($category->id)],
             'name' => ['required', 'string', 'max:120'],
-            'label_fr' => ['nullable', 'string', 'max:120'],
-            'label_ar' => ['nullable', 'string', 'max:120'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
         ]);
 
+        $name = trim($data['name']);
+        $disciplineId = (int) $data['discipline_id'];
+
+        $this->assertUniqueCategoryName($disciplineId, $name, $category->id);
+
+        $disciplineChanged = (int) $category->discipline_id !== $disciplineId;
+
         $category->update([
-            'discipline_id' => (int) $data['discipline_id'],
-            'code' => $data['code'],
-            'name' => $data['name'],
-            'labels' => $this->buildLabels($data),
+            'discipline_id' => $disciplineId,
+            'name' => $name,
+            'labels' => $this->buildLabels($name),
             'sort_order' => $data['sort_order'] ?? 0,
             'is_active' => $request->boolean('is_active'),
         ]);
+
+        if ($disciplineChanged) {
+            LabParameter::query()
+                ->where('category_id', $category->id)
+                ->update([
+                    'discipline_id' => $disciplineId,
+                ]);
+        }
 
         return back()->with('status', __('messages.catalog_saved'));
     }
 
     public function destroyCategory(Category $category): RedirectResponse
     {
+        if ($category->allSubcategories()->exists() || $category->parameters()->exists()) {
+            return back()->withErrors([
+                'catalog' => __('messages.catalog_delete_has_children'),
+            ]);
+        }
+
         $category->delete();
 
         return back()->with('status', __('messages.catalog_saved'));
@@ -156,18 +216,41 @@ class CatalogController extends Controller
     {
         $data = $request->validate([
             'category_id' => ['required', 'exists:categories,id'],
-            'code' => ['required', 'string', 'max:60', 'unique:subcategories,code'],
+            'parent_subcategory_id' => ['nullable', 'integer', 'exists:subcategories,id'],
             'name' => ['required', 'string', 'max:120'],
-            'label_fr' => ['nullable', 'string', 'max:120'],
-            'label_ar' => ['nullable', 'string', 'max:120'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
         ]);
 
+        $name = trim($data['name']);
+        $category = Category::query()->findOrFail((int) $data['category_id']);
+        $parent = $this->resolveParentSubcategoryForCategory(
+            $category,
+            isset($data['parent_subcategory_id']) ? (int) $data['parent_subcategory_id'] : null
+        );
+
+        $depth = $parent ? ($parent->depth + 1) : 1;
+
+        if ($depth > self::MAX_SUBCATEGORY_DEPTH) {
+            throw ValidationException::withMessages([
+                'parent_subcategory_id' => __('messages.catalog_depth_limit'),
+            ]);
+        }
+
+        $this->assertNotSameAsParentName($parent?->name ?? $category->name, $name);
+        $this->assertUniqueSubcategoryName($category->id, $parent?->id, $name);
+        $this->convertParentToContainer($category, $parent);
+
         Subcategory::query()->create([
-            'category_id' => (int) $data['category_id'],
-            'code' => $data['code'],
-            'name' => $data['name'],
-            'labels' => $this->buildLabels($data),
+            'category_id' => $category->id,
+            'parent_subcategory_id' => $parent?->id,
+            'depth' => $depth,
+            'code' => $this->generateUniqueCode(
+                'sous-categorie',
+                $name,
+                fn (string $code) => Subcategory::query()->where('code', $code)->exists(),
+            ),
+            'name' => $name,
+            'labels' => $this->buildLabels($name),
             'sort_order' => $data['sort_order'] ?? 0,
             'is_active' => true,
         ]);
@@ -179,28 +262,76 @@ class CatalogController extends Controller
     {
         $data = $request->validate([
             'category_id' => ['required', 'exists:categories,id'],
-            'code' => ['required', 'string', 'max:60', Rule::unique('subcategories', 'code')->ignore($subcategory->id)],
+            'parent_subcategory_id' => ['nullable', 'integer', 'exists:subcategories,id'],
             'name' => ['required', 'string', 'max:120'],
-            'label_fr' => ['nullable', 'string', 'max:120'],
-            'label_ar' => ['nullable', 'string', 'max:120'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
         ]);
 
+        $name = trim($data['name']);
+        $category = Category::query()->findOrFail((int) $data['category_id']);
+        $parent = $this->resolveParentSubcategoryForCategory(
+            $category,
+            isset($data['parent_subcategory_id']) ? (int) $data['parent_subcategory_id'] : null,
+            $subcategory
+        );
+
+        $depth = $parent ? ($parent->depth + 1) : 1;
+
+        if ($depth > self::MAX_SUBCATEGORY_DEPTH) {
+            throw ValidationException::withMessages([
+                'parent_subcategory_id' => __('messages.catalog_depth_limit'),
+            ]);
+        }
+
+        if ($subcategory->children()->exists() && $depth >= self::MAX_SUBCATEGORY_DEPTH) {
+            throw ValidationException::withMessages([
+                'parent_subcategory_id' => __('messages.catalog_depth_limit'),
+            ]);
+        }
+
+        $categoryChanged = (int) $subcategory->category_id !== (int) $category->id;
+
+        if ($categoryChanged && $subcategory->children()->exists()) {
+            throw ValidationException::withMessages([
+                'category_id' => __('messages.catalog_reassign_blocked_with_children'),
+            ]);
+        }
+
+        $this->assertNotSameAsParentName($parent?->name ?? $category->name, $name);
+        $this->assertUniqueSubcategoryName($category->id, $parent?->id, $name, $subcategory->id);
+        $this->convertParentToContainer($category, $parent);
+
         $subcategory->update([
-            'category_id' => (int) $data['category_id'],
-            'code' => $data['code'],
-            'name' => $data['name'],
-            'labels' => $this->buildLabels($data),
+            'category_id' => (int) $category->id,
+            'parent_subcategory_id' => $parent?->id,
+            'depth' => $depth,
+            'name' => $name,
+            'labels' => $this->buildLabels($name),
             'sort_order' => $data['sort_order'] ?? 0,
             'is_active' => $request->boolean('is_active'),
         ]);
+
+        if ($categoryChanged) {
+            LabParameter::query()
+                ->where('subcategory_id', $subcategory->id)
+                ->update([
+                    'discipline_id' => $category->discipline_id,
+                    'category_id' => $category->id,
+                ]);
+        }
 
         return back()->with('status', __('messages.catalog_saved'));
     }
 
     public function destroySubcategory(Subcategory $subcategory): RedirectResponse
     {
+        if ($subcategory->children()->exists() || $subcategory->parameters()->exists()) {
+            return back()->withErrors([
+                'catalog' => __('messages.catalog_delete_has_children'),
+            ]);
+        }
+
         $subcategory->delete();
 
         return back()->with('status', __('messages.catalog_saved'));
@@ -209,38 +340,45 @@ class CatalogController extends Controller
     public function storeParameter(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'discipline_id' => ['required', 'exists:disciplines,id'],
             'category_id' => ['required', 'exists:categories,id'],
-            'subcategory_id' => ['nullable', 'exists:subcategories,id'],
-            'code' => ['required', 'string', 'max:80', 'unique:lab_parameters,code'],
+            'subcategory_id' => ['nullable', 'integer', 'exists:subcategories,id'],
             'name' => ['required', 'string', 'max:120'],
-            'label_fr' => ['nullable', 'string', 'max:120'],
-            'label_ar' => ['nullable', 'string', 'max:120'],
             'unit' => ['nullable', 'string', 'max:40'],
-            'value_type' => ['required', 'in:number,text,list'],
-            'normal_min' => ['nullable', 'numeric'],
-            'normal_max' => ['nullable', 'numeric'],
-            'normal_text' => ['nullable', 'string', 'max:120'],
+            'value_type' => ['required', Rule::in(['number', 'text', 'list'])],
+            'reference' => ['nullable', 'string', 'max:255'],
             'options_csv' => ['nullable', 'string'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
         ]);
 
-        if ($hierarchyErrors = $this->validateParameterHierarchy($data)) {
-            return back()->withErrors($hierarchyErrors)->withInput();
-        }
+        $name = trim($data['name']);
+        $category = Category::query()->with('discipline')->findOrFail((int) $data['category_id']);
+        $subcategory = $this->resolveSubcategoryForCategory(
+            $category,
+            isset($data['subcategory_id']) ? (int) $data['subcategory_id'] : null
+        );
+
+        $this->assertCanAttachParameter($category, $subcategory);
+        $this->assertNotSameAsParentName($subcategory?->name ?? $category->name, $name);
+        $this->assertUniqueParameterName($category->id, $subcategory?->id, $name);
+
+        [$normalMin, $normalMax, $normalText] = $this->extractReferenceFields($data['value_type'], $data['reference'] ?? null);
 
         LabParameter::query()->create([
-            'discipline_id' => (int) $data['discipline_id'],
-            'category_id' => (int) $data['category_id'],
-            'subcategory_id' => $data['subcategory_id'] ?? null,
-            'code' => $data['code'],
-            'name' => $data['name'],
-            'labels' => $this->buildLabels($data),
-            'unit' => $data['unit'] ?? null,
+            'discipline_id' => $category->discipline_id,
+            'category_id' => $category->id,
+            'subcategory_id' => $subcategory?->id,
+            'code' => $this->generateUniqueCode(
+                'param',
+                $category->name.'-'.$name,
+                fn (string $code) => LabParameter::query()->where('code', $code)->exists(),
+            ),
+            'name' => $name,
+            'labels' => $this->buildLabels($name),
+            'unit' => ($data['unit'] ?? '') !== '' ? $data['unit'] : null,
             'value_type' => $data['value_type'],
-            'normal_min' => $data['normal_min'] ?? null,
-            'normal_max' => $data['normal_max'] ?? null,
-            'normal_text' => $data['normal_text'] ?? null,
+            'normal_min' => $normalMin,
+            'normal_max' => $normalMax,
+            'normal_text' => $normalText,
             'options' => $this->parseOptions($data['options_csv'] ?? null),
             'abnormal_style' => [
                 'font_weight' => '700',
@@ -257,47 +395,43 @@ class CatalogController extends Controller
     public function updateParameter(Request $request, LabParameter $parameter): RedirectResponse
     {
         $data = $request->validate([
-            'discipline_id' => ['required', 'exists:disciplines,id'],
             'category_id' => ['required', 'exists:categories,id'],
-            'subcategory_id' => ['nullable', 'exists:subcategories,id'],
-            'code' => ['required', 'string', 'max:80', Rule::unique('lab_parameters', 'code')->ignore($parameter->id)],
+            'subcategory_id' => ['nullable', 'integer', 'exists:subcategories,id'],
             'name' => ['required', 'string', 'max:120'],
-            'label_fr' => ['nullable', 'string', 'max:120'],
-            'label_ar' => ['nullable', 'string', 'max:120'],
             'unit' => ['nullable', 'string', 'max:40'],
-            'value_type' => ['required', 'in:number,text,list'],
-            'normal_min' => ['nullable', 'numeric'],
-            'normal_max' => ['nullable', 'numeric'],
-            'normal_text' => ['nullable', 'string', 'max:120'],
+            'value_type' => ['required', Rule::in(['number', 'text', 'list'])],
+            'reference' => ['nullable', 'string', 'max:255'],
             'options_csv' => ['nullable', 'string'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'is_visible' => ['nullable', 'boolean'],
             'is_active' => ['nullable', 'boolean'],
         ]);
 
-        if ($hierarchyErrors = $this->validateParameterHierarchy($data)) {
-            return back()->withErrors($hierarchyErrors)->withInput();
-        }
+        $name = trim($data['name']);
+        $category = Category::query()->findOrFail((int) $data['category_id']);
+        $subcategory = $this->resolveSubcategoryForCategory(
+            $category,
+            isset($data['subcategory_id']) ? (int) $data['subcategory_id'] : null
+        );
+
+        $this->assertCanAttachParameter($category, $subcategory);
+        $this->assertNotSameAsParentName($subcategory?->name ?? $category->name, $name);
+        $this->assertUniqueParameterName($category->id, $subcategory?->id, $name, $parameter->id);
+
+        [$normalMin, $normalMax, $normalText] = $this->extractReferenceFields($data['value_type'], $data['reference'] ?? null);
 
         $parameter->update([
-            'discipline_id' => (int) $data['discipline_id'],
-            'category_id' => (int) $data['category_id'],
-            'subcategory_id' => $data['subcategory_id'] ?? null,
-            'code' => $data['code'],
-            'name' => $data['name'],
-            'labels' => $this->buildLabels($data),
-            'unit' => $data['unit'] ?? null,
+            'discipline_id' => $category->discipline_id,
+            'category_id' => $category->id,
+            'subcategory_id' => $subcategory?->id,
+            'name' => $name,
+            'labels' => $this->buildLabels($name),
+            'unit' => ($data['unit'] ?? '') !== '' ? $data['unit'] : null,
             'value_type' => $data['value_type'],
-            'normal_min' => $data['normal_min'] ?? null,
-            'normal_max' => $data['normal_max'] ?? null,
-            'normal_text' => $data['normal_text'] ?? null,
+            'normal_min' => $normalMin,
+            'normal_max' => $normalMax,
+            'normal_text' => $normalText,
             'options' => $this->parseOptions($data['options_csv'] ?? null),
-            'abnormal_style' => is_array($parameter->abnormal_style) && $parameter->abnormal_style !== []
-                ? $parameter->abnormal_style
-                : [
-                    'font_weight' => '700',
-                    'text_color' => '#b91c1c',
-                ],
             'sort_order' => $data['sort_order'] ?? 0,
             'is_visible' => $request->boolean('is_visible'),
             'is_active' => $request->boolean('is_active'),
@@ -313,13 +447,33 @@ class CatalogController extends Controller
         return back()->with('status', __('messages.catalog_saved'));
     }
 
-    private function buildLabels(array $data): array
+    private function buildLabels(string $name): array
     {
         return [
-            'en' => $data['name'],
-            'fr' => $data['label_fr'] ?? $data['name'],
-            'ar' => $data['label_ar'] ?? $data['name'],
+            'fr' => $name,
         ];
+    }
+
+    /**
+     * @param callable(string):bool $exists
+     */
+    private function generateUniqueCode(string $prefix, string $seed, callable $exists): string
+    {
+        $base = Str::slug(Str::lower($seed), '-');
+
+        if ($base === '') {
+            $base = 'item';
+        }
+
+        $candidate = "{$prefix}-{$base}";
+        $index = 1;
+
+        while ($exists($candidate)) {
+            $index++;
+            $candidate = "{$prefix}-{$base}-{$index}";
+        }
+
+        return $candidate;
     }
 
     private function parseOptions(?string $optionsCsv): ?array
@@ -338,26 +492,252 @@ class CatalogController extends Controller
         return $options === [] ? null : $options;
     }
 
-    private function validateParameterHierarchy(array $data): ?array
+    /**
+     * @return array{0: float|null, 1: float|null, 2: string|null}
+     */
+    private function extractReferenceFields(string $valueType, ?string $reference): array
     {
-        $category = Category::query()->find((int) $data['category_id']);
+        $reference = $reference !== null ? trim($reference) : null;
 
-        if (! $category || (int) $category->discipline_id !== (int) $data['discipline_id']) {
-            return [
-                'category_id' => __('messages.category_discipline_error'),
-            ];
+        if ($reference === null || $reference === '') {
+            return [null, null, null];
         }
 
-        if (! empty($data['subcategory_id'])) {
-            $subcategory = Subcategory::query()->find((int) $data['subcategory_id']);
+        if ($valueType === 'number') {
+            $candidate = str_replace([',', '–', '—'], ['.', '-', '-'], $reference);
 
-            if (! $subcategory || (int) $subcategory->category_id !== (int) $category->id) {
-                return [
-                    'subcategory_id' => __('messages.subcategory_category_error'),
-                ];
+            if (preg_match('/^\s*(-?\d+(?:\.\d+)?)\s*-\s*(-?\d+(?:\.\d+)?)\s*$/', $candidate, $matches) === 1) {
+                return [(float) $matches[1], (float) $matches[2], null];
             }
         }
 
-        return null;
+        return [null, null, $reference];
+    }
+
+    private function resolveSubcategoryForCategory(Category $category, ?int $subcategoryId): ?Subcategory
+    {
+        if ($subcategoryId === null) {
+            return null;
+        }
+
+        $subcategory = Subcategory::query()->findOrFail($subcategoryId);
+
+        if ((int) $subcategory->category_id !== (int) $category->id) {
+            throw ValidationException::withMessages([
+                'subcategory_id' => __('messages.subcategory_category_error'),
+            ]);
+        }
+
+        return $subcategory;
+    }
+
+    private function resolveParentSubcategoryForCategory(Category $category, ?int $parentSubcategoryId, ?Subcategory $currentSubcategory = null): ?Subcategory
+    {
+        if ($parentSubcategoryId === null) {
+            return null;
+        }
+
+        $parent = Subcategory::query()->findOrFail($parentSubcategoryId);
+
+        if ((int) $parent->category_id !== (int) $category->id) {
+            throw ValidationException::withMessages([
+                'parent_subcategory_id' => __('messages.subcategory_category_error'),
+            ]);
+        }
+
+        if ($currentSubcategory && (int) $parent->id === (int) $currentSubcategory->id) {
+            throw ValidationException::withMessages([
+                'parent_subcategory_id' => __('messages.catalog_invalid_parent'),
+            ]);
+        }
+
+        if ($currentSubcategory && $this->isSubcategoryDescendantOf((int) $parent->id, (int) $currentSubcategory->id)) {
+            throw ValidationException::withMessages([
+                'parent_subcategory_id' => __('messages.catalog_invalid_parent'),
+            ]);
+        }
+
+        return $parent;
+    }
+
+    private function isSubcategoryDescendantOf(int $candidateParentId, int $subcategoryId): bool
+    {
+        $cursor = Subcategory::query()->find($candidateParentId);
+
+        while ($cursor) {
+            if ((int) $cursor->id === $subcategoryId) {
+                return true;
+            }
+
+            if ($cursor->parent_subcategory_id === null) {
+                return false;
+            }
+
+            $cursor = Subcategory::query()->find((int) $cursor->parent_subcategory_id);
+        }
+
+        return false;
+    }
+
+    private function assertUniqueDisciplineName(string $name, ?int $ignoreId = null): void
+    {
+        $query = Discipline::query();
+
+        if ($ignoreId !== null) {
+            $query->whereKeyNot($ignoreId);
+        }
+
+        $exists = $this->whereNameEquals($query, $name)->exists();
+
+        if ($exists) {
+            throw ValidationException::withMessages([
+                'name' => __('messages.catalog_duplicate_same_level'),
+            ]);
+        }
+    }
+
+    private function assertUniqueCategoryName(int $disciplineId, string $name, ?int $ignoreId = null): void
+    {
+        $query = Category::query()->where('discipline_id', $disciplineId);
+
+        if ($ignoreId !== null) {
+            $query->whereKeyNot($ignoreId);
+        }
+
+        $exists = $this->whereNameEquals($query, $name)->exists();
+
+        if ($exists) {
+            throw ValidationException::withMessages([
+                'name' => __('messages.catalog_duplicate_same_level'),
+            ]);
+        }
+    }
+
+    private function assertUniqueSubcategoryName(int $categoryId, ?int $parentSubcategoryId, string $name, ?int $ignoreId = null): void
+    {
+        $query = Subcategory::query()->where('category_id', $categoryId);
+
+        if ($parentSubcategoryId === null) {
+            $query->whereNull('parent_subcategory_id');
+        } else {
+            $query->where('parent_subcategory_id', $parentSubcategoryId);
+        }
+
+        if ($ignoreId !== null) {
+            $query->whereKeyNot($ignoreId);
+        }
+
+        $exists = $this->whereNameEquals($query, $name)->exists();
+
+        if ($exists) {
+            throw ValidationException::withMessages([
+                'name' => __('messages.catalog_duplicate_same_level'),
+            ]);
+        }
+    }
+
+    private function assertUniqueParameterName(int $categoryId, ?int $subcategoryId, string $name, ?int $ignoreId = null): void
+    {
+        $query = LabParameter::query()->where('category_id', $categoryId);
+
+        if ($subcategoryId === null) {
+            $query->whereNull('subcategory_id');
+        } else {
+            $query->where('subcategory_id', $subcategoryId);
+        }
+
+        if ($ignoreId !== null) {
+            $query->whereKeyNot($ignoreId);
+        }
+
+        $exists = $this->whereNameEquals($query, $name)->exists();
+
+        if ($exists) {
+            throw ValidationException::withMessages([
+                'name' => __('messages.catalog_duplicate_same_level'),
+            ]);
+        }
+    }
+
+    private function assertNotSameAsParentName(?string $parentName, string $childName): void
+    {
+        if ($parentName === null) {
+            return;
+        }
+
+        $parent = mb_strtolower(trim($parentName));
+        $child = mb_strtolower(trim($childName));
+
+        if ($parent === $child) {
+            throw ValidationException::withMessages([
+                'name' => __('messages.catalog_same_as_parent'),
+            ]);
+        }
+    }
+
+    private function convertParentToContainer(Category $category, ?Subcategory $parent): void
+    {
+        if ($parent === null) {
+            LabParameter::query()
+                ->where('category_id', $category->id)
+                ->whereNull('subcategory_id')
+                ->where(function ($query) {
+                    $query->where('is_active', true)->orWhere('is_visible', true);
+                })
+                ->update([
+                    'is_active' => false,
+                    'is_visible' => false,
+                ]);
+
+            return;
+        }
+
+        LabParameter::query()
+            ->where('subcategory_id', $parent->id)
+            ->where(function ($query) {
+                $query->where('is_active', true)->orWhere('is_visible', true);
+            })
+            ->update([
+                'is_active' => false,
+                'is_visible' => false,
+            ]);
+    }
+
+    private function assertCanAttachParameter(Category $category, ?Subcategory $subcategory): void
+    {
+        if ($subcategory === null) {
+            $hasChildren = Subcategory::query()
+                ->where('category_id', $category->id)
+                ->exists();
+
+            if ($hasChildren) {
+                throw ValidationException::withMessages([
+                    'subcategory_id' => __('messages.catalog_leaf_only_values'),
+                ]);
+            }
+
+            $parentLevel = 2;
+        } else {
+            if ($subcategory->children()->exists()) {
+                throw ValidationException::withMessages([
+                    'subcategory_id' => __('messages.catalog_leaf_only_values'),
+                ]);
+            }
+
+            $parentLevel = 2 + (int) $subcategory->depth;
+        }
+
+        $leafLevel = $parentLevel + 1;
+
+        if ($leafLevel > self::MAX_TREE_LEVEL) {
+            throw ValidationException::withMessages([
+                'subcategory_id' => __('messages.catalog_depth_limit'),
+            ]);
+        }
+    }
+
+    private function whereNameEquals($query, string $name)
+    {
+        return $query->whereRaw('LOWER(name) = ?', [mb_strtolower(trim($name))]);
     }
 }

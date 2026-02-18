@@ -33,6 +33,13 @@ class Category extends Model
 
     public function subcategories(): HasMany
     {
+        return $this->hasMany(Subcategory::class)
+            ->whereNull('parent_subcategory_id')
+            ->orderBy('sort_order');
+    }
+
+    public function allSubcategories(): HasMany
+    {
         return $this->hasMany(Subcategory::class)->orderBy('sort_order');
     }
 

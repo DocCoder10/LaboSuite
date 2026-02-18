@@ -8,7 +8,18 @@
 
 ## Current Features Implemented
 - Medical hierarchy catalog:
-  - Discipline -> Category -> Subcategory -> Parameter
+  - Official structure: Categorie (domain) -> Analyse -> Sous-analyse -> Sous-niveaux -> Valeur terminale
+  - Maximum hierarchy depth: 5 levels
+  - Leaf-only values: only terminal items can carry value/unit/type/reference
+  - Duplicate guards:
+    - no duplicate name on the same level
+    - no child with the same name as its direct parent
+  - Safe deletion with centered confirmation popup (deletion blocked when children exist)
+  - Tree UX:
+    - selected node + parent path highlighting by level
+    - smooth open/close transitions
+    - up to 3 root branches open simultaneously
+    - per-node unsaved edit state preserved until save/cancel
 - Patient + analysis workflow:
   - New analysis
   - Patient details
@@ -18,10 +29,10 @@
   - Report preview
   - Print/PDF via Chromium print dialog (A4 enforced by print CSS)
 - Config pages:
-  - Catalog management (full CRUD + display ordering)
+  - Catalog management (single tree editor inspired by legacy Python UX)
   - Lab identity + report layout settings
 - Localization:
-  - FR / EN / AR switch from UI
+  - French only (FR)
 
 ## Backend Local Run
 ```bash
@@ -53,6 +64,12 @@ Prerequisites:
 cd app
 npm install
 npm run start
+```
+
+Linux (if window does not appear with Wayland):
+```bash
+cd app
+ELECTRON_OZONE_PLATFORM_HINT=x11 npm run start
 ```
 
 Electron will:

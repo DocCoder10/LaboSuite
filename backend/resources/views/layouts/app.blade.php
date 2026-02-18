@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" dir="{{ app()->getLocale() === 'ar' ? 'rtl' : 'ltr' }}">
+<html lang="fr" dir="ltr">
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -21,11 +21,6 @@
                     <a class="lms-nav-link {{ request()->routeIs('settings.*') ? 'is-active' : '' }}" href="{{ route('settings.edit') }}">{{ __('messages.nav_settings') }}</a>
                 </nav>
 
-                <div class="lms-lang-switch">
-                    <a class="lms-lang-link" href="{{ route('locale.switch', 'fr') }}">{{ __('messages.lang_fr') }}</a>
-                    <a class="lms-lang-link" href="{{ route('locale.switch', 'en') }}">{{ __('messages.lang_en') }}</a>
-                    <a class="lms-lang-link" href="{{ route('locale.switch', 'ar') }}">{{ __('messages.lang_ar') }}</a>
-                </div>
             </header>
 
             <main class="lms-main">

@@ -13,6 +13,8 @@ class Subcategory extends Model
 
     protected $fillable = [
         'category_id',
+        'parent_subcategory_id',
+        'depth',
         'code',
         'name',
         'labels',
@@ -23,11 +25,22 @@ class Subcategory extends Model
     protected $casts = [
         'labels' => 'array',
         'is_active' => 'boolean',
+        'depth' => 'integer',
     ];
 
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
+    }
+
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_subcategory_id');
+    }
+
+    public function children(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_subcategory_id')->orderBy('sort_order');
     }
 
     public function parameters(): HasMany
