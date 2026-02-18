@@ -1,0 +1,57 @@
+{
+  "name": "labosuite-desktop",
+  "version": "1.0.0",
+  "description": "Offline desktop Laboratory Management System",
+  "main": "main.js",
+  "author": "LaboSuite",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "pack": "electron-builder --dir",
+    "dist:win": "electron-builder --win nsis"
+  },
+  "dependencies": {
+    "electron": "^40.4.1"
+  },
+  "devDependencies": {
+    "electron-builder": "^26.8.1"
+  },
+  "build": {
+    "appId": "com.labosuite.lms",
+    "productName": "LaboSuite LMS",
+    "asar": false,
+    "files": [
+      "main.js",
+      "preload.js"
+    ],
+    "extraResources": [
+      {
+        "from": "../backend",
+        "to": "backend"
+      },
+      {
+        "from": "runtime",
+        "to": "runtime",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "artifactName": "LaboSuite-LMS-Setup-${version}.${ext}"
+    }
+  }
+}

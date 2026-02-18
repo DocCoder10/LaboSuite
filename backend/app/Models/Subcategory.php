@@ -1,0 +1,44 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+class Subcategory extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'category_id',
+        'code',
+        'name',
+        'labels',
+        'sort_order',
+        'is_active',
+    ];
+
+    protected $casts = [
+        'labels' => 'array',
+        'is_active' => 'boolean',
+    ];
+
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(Category::class);
+    }
+
+    public function parameters(): HasMany
+    {
+        return $this->hasMany(LabParameter::class)->orderBy('sort_order');
+    }
+
+    public function label(string $locale, string $fallback = 'en'): string
+    {
+        return $this->labels[$locale]
+            ?? $this->labels[$fallback]
+            ?? $this->name;
+    }
+}

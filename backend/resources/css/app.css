@@ -1,0 +1,347 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+
+@theme {
+    --font-sans: 'IBM Plex Sans', 'Segoe UI', sans-serif;
+}
+
+:root {
+    --lms-bg: radial-gradient(circle at 15% 10%, #dbeafe 0%, #f8fafc 40%, #eef2ff 100%);
+    --lms-ink: #0f172a;
+    --lms-muted: #475569;
+    --lms-card: rgba(255, 255, 255, 0.92);
+    --lms-border: rgba(148, 163, 184, 0.35);
+    --lms-accent: #0f766e;
+    --lms-accent-soft: #ccfbf1;
+    --lms-danger: #b91c1c;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body.lms-body {
+    margin: 0;
+    min-height: 100vh;
+    color: var(--lms-ink);
+    background: var(--lms-bg);
+}
+
+.lms-shell {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 2.5rem;
+}
+
+.lms-topbar {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 1rem;
+    align-items: center;
+    margin-bottom: 1.25rem;
+}
+
+.lms-kicker {
+    margin: 0;
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    color: var(--lms-muted);
+}
+
+.lms-brand {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+.lms-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.lms-nav-link {
+    text-decoration: none;
+    border: 1px solid var(--lms-border);
+    background: var(--lms-card);
+    color: var(--lms-ink);
+    padding: 0.45rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+}
+
+.lms-nav-link.is-active {
+    border-color: transparent;
+    background: var(--lms-accent);
+    color: #ffffff;
+}
+
+.lms-lang-switch {
+    display: flex;
+    gap: 0.35rem;
+}
+
+.lms-lang-link {
+    padding: 0.35rem 0.55rem;
+    border-radius: 8px;
+    border: 1px solid var(--lms-border);
+    text-decoration: none;
+    color: var(--lms-ink);
+    background: #ffffff;
+    font-size: 0.8rem;
+}
+
+.lms-main {
+    display: grid;
+    gap: 1rem;
+}
+
+.lms-page-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.lms-page-head h2 {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+.lms-inline-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.lms-card {
+    border: 1px solid var(--lms-border);
+    background: var(--lms-card);
+    border-radius: 16px;
+    padding: 1rem;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+}
+
+.lms-stack {
+    display: grid;
+    gap: 0.8rem;
+}
+
+.lms-grid {
+    display: grid;
+    gap: 1rem;
+}
+
+.lms-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.lms-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.8rem;
+}
+
+.lms-check-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+}
+
+.lms-check-group h4 {
+    margin: 0 0 0.4rem;
+}
+
+.lms-field {
+    display: grid;
+    gap: 0.35rem;
+    font-size: 0.88rem;
+}
+
+.lms-field input,
+.lms-field textarea,
+.lms-field select {
+    border: 1px solid var(--lms-border);
+    border-radius: 10px;
+    padding: 0.55rem 0.65rem;
+    background: #ffffff;
+}
+
+.lms-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.88rem;
+}
+
+.lms-btn {
+    border: 1px solid transparent;
+    background: var(--lms-accent);
+    color: #ffffff;
+    border-radius: 10px;
+    padding: 0.55rem 0.85rem;
+    text-decoration: none;
+    font-size: 0.88rem;
+    cursor: pointer;
+}
+
+.lms-btn-soft {
+    background: #ffffff;
+    color: var(--lms-ink);
+    border-color: var(--lms-border);
+}
+
+.lms-btn-danger {
+    background: var(--lms-danger);
+}
+
+.lms-muted {
+    margin: 0;
+    color: var(--lms-muted);
+    font-size: 0.88rem;
+}
+
+.lms-alert {
+    border-radius: 10px;
+    padding: 0.65rem 0.8rem;
+    font-size: 0.88rem;
+}
+
+.lms-alert ul {
+    margin: 0;
+    padding-left: 1rem;
+}
+
+.lms-alert-success {
+    background: #dcfce7;
+    border: 1px solid #86efac;
+}
+
+.lms-alert-error {
+    background: #fee2e2;
+    border: 1px solid #fca5a5;
+}
+
+.lms-table-wrap {
+    overflow-x: auto;
+}
+
+.lms-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+}
+
+.lms-table th,
+.lms-table td {
+    border-bottom: 1px solid var(--lms-border);
+    padding: 0.55rem 0.35rem;
+    text-align: left;
+    vertical-align: top;
+}
+
+.lms-actions-cell {
+    width: 140px;
+}
+
+.lms-report-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-bottom: 0.8rem;
+    border-bottom: 2px dashed var(--lms-border);
+}
+
+.lms-report-head p,
+.lms-report-head h3 {
+    margin: 0;
+}
+
+.lms-report-discipline {
+    margin-top: 1rem;
+}
+
+.lms-report-discipline h4 {
+    margin: 0 0 0.6rem;
+    color: #0f172a;
+    letter-spacing: 0.04em;
+    font-size: 1.1rem;
+}
+
+.lms-report-category {
+    margin-bottom: 0.9rem;
+}
+
+.lms-report-category h5 {
+    margin: 0.45rem 0;
+    color: #0f766e;
+}
+
+.lms-report-category h6 {
+    margin: 0.35rem 0;
+    color: #1e3a8a;
+}
+
+.lms-report-table .is-abnormal td {
+    color: var(--lms-danger);
+    font-weight: 700;
+}
+
+.lms-report-notes,
+.lms-report-footer {
+    margin-top: 1rem;
+}
+
+.lms-print-toolbar {
+    position: sticky;
+    top: 0;
+    background: #f1f5f9;
+    padding: 0.5rem;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.lms-print-toolbar button {
+    border: 0;
+    background: #0f766e;
+    color: #ffffff;
+    border-radius: 8px;
+    padding: 0.45rem 0.8rem;
+}
+
+@media (max-width: 1024px) {
+    .lms-topbar {
+        grid-template-columns: 1fr;
+    }
+
+    .lms-grid-2,
+    .lms-grid-3 {
+        grid-template-columns: 1fr;
+    }
+
+    .lms-page-head {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+@media print {
+    .no-print {
+        display: none !important;
+    }
+
+    body {
+        background: #ffffff;
+    }
+
+    .lms-report {
+        border: 0;
+        box-shadow: none;
+        padding: 0;
+    }
+}
