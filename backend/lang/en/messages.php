@@ -24,6 +24,13 @@ return [
     'step_select' => '2. Analysis selection',
     'step_results' => '3. Result entry',
     'step_preview' => '4. Save and preview',
+    'continue_to_results' => 'Continue to result entry',
+    'change_selection' => 'Edit patient/selection',
+    'patient_summary' => 'Patient summary',
+    'selection_required' => 'Please select analyses before entering results.',
+    'selection_outdated' => 'Selected analyses are no longer available. Please reselect.',
+    'result_required_parameter' => 'Result is required for :parameter.',
+    'result_invalid_option' => 'Invalid option for :parameter.',
 
     'patient_identifier' => 'Identifier',
     'first_name' => 'First name',

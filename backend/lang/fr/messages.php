@@ -24,6 +24,13 @@ return [
     'step_select' => '2. Choix des analyses',
     'step_results' => '3. Saisie des resultats',
     'step_preview' => '4. Enregistrer et previsualiser',
+    'continue_to_results' => 'Continuer vers la saisie',
+    'change_selection' => 'Modifier patient/selection',
+    'patient_summary' => 'Resume patient',
+    'selection_required' => 'Selectionne des analyses avant la saisie des resultats.',
+    'selection_outdated' => 'Les analyses selectionnees ne sont plus disponibles. Refaire la selection.',
+    'result_required_parameter' => 'Le resultat est obligatoire pour :parameter.',
+    'result_invalid_option' => 'Option invalide pour :parameter.',
 
     'patient_identifier' => 'Identifiant',
     'first_name' => 'Prenom',

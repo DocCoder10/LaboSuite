@@ -12,8 +12,8 @@
 - Patient + analysis workflow:
   - New analysis
   - Patient details
-  - Category selection
-  - Dynamic result field generation
+  - Category selection (screen 1)
+  - Dynamic result entry (screen 2, separated from selection)
   - Save analysis
   - Report preview
   - Print/PDF via Chromium print dialog (A4 enforced by print CSS)
@@ -30,6 +30,18 @@ php artisan migrate:fresh --seed
 npm run build
 php artisan serve
 ```
+
+## Import Legacy Analyses (Python JSON)
+Command:
+```bash
+cd backend
+php artisan lms:import-legacy-analyses /absolute/path/to/analyses.json --wipe
+```
+
+Notes:
+- `--wipe` deletes current catalog (disciplines/categories/parameters) before import.
+- The importer maps legacy `categorie` to LMS discipline and each legacy analysis `nom` to an LMS category.
+- Legacy `sous_analyses` are imported as parameters under that category.
 
 Open: `http://127.0.0.1:8000`
 

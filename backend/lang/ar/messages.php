@@ -24,6 +24,13 @@ return [
     'step_select' => '2. اختيار التحاليل',
     'step_results' => '3. ادخال النتائج',
     'step_preview' => '4. حفظ ومعاينة',
+    'continue_to_results' => 'المتابعة الى ادخال النتائج',
+    'change_selection' => 'تعديل المريض/التحاليل',
+    'patient_summary' => 'ملخص المريض',
+    'selection_required' => 'اختر التحاليل قبل ادخال النتائج.',
+    'selection_outdated' => 'التحاليل المختارة لم تعد متاحة. يرجى اعادة الاختيار.',
+    'result_required_parameter' => 'النتيجة مطلوبة لـ :parameter.',
+    'result_invalid_option' => 'خيار غير صالح لـ :parameter.',
 
     'patient_identifier' => 'المعرف',
     'first_name' => 'الاسم',

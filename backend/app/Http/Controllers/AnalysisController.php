@@ -12,6 +12,7 @@ use App\Models\Patient;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
@@ -30,47 +31,176 @@ class AnalysisController extends Controller
         ]);
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
-        $disciplines = Discipline::query()
-            ->where('is_active', true)
-            ->with([
-                'categories' => fn ($query) => $query
-                    ->where('is_active', true)
-                    ->with([
-                        'subcategories' => fn ($subQuery) => $subQuery->where('is_active', true),
-                        'parameters' => fn ($paramQuery) => $paramQuery
-                            ->where('is_active', true)
-                            ->where('is_visible', true)
-                            ->with('subcategory'),
-                    ]),
-            ])
-            ->orderBy('sort_order')
-            ->get();
+        $draft = $request->session()->get('analysis_draft', []);
 
         return view('analyses.create', [
-            'analysisDate' => now()->toDateString(),
-            'disciplines' => $disciplines,
+            'analysisDate' => $draft['analysis_date'] ?? now()->toDateString(),
+            'disciplines' => $this->loadActiveDisciplines(),
+            'draft' => $draft,
+        ]);
+    }
+
+    public function storeSelection(Request $request): RedirectResponse
+    {
+        $validated = $request->validate($this->selectionRules());
+
+        $validated['selected_categories'] = collect($validated['selected_categories'])
+            ->map(fn (mixed $value) => (int) $value)
+            ->unique()
+            ->values()
+            ->all();
+
+        $request->session()->put('analysis_draft', [
+            'patient' => [
+                'identifier' => $validated['patient']['identifier'],
+                'first_name' => $validated['patient']['first_name'],
+                'last_name' => $validated['patient']['last_name'],
+                'sex' => $validated['patient']['sex'],
+                'age' => $validated['patient']['age'] ?? null,
+                'phone' => $validated['patient']['phone'] ?? null,
+            ],
+            'analysis_date' => $validated['analysis_date'],
+            'selected_categories' => $validated['selected_categories'],
+        ]);
+
+        return redirect()->route('analyses.results');
+    }
+
+    public function results(Request $request): RedirectResponse|View
+    {
+        $draft = $request->session()->get('analysis_draft');
+
+        if (! is_array($draft) || empty($draft['selected_categories'])) {
+            return redirect()
+                ->route('analyses.create')
+                ->withErrors(['selected_categories' => __('messages.selection_required')]);
+        }
+
+        $entryData = $this->buildEntryViewData($draft);
+
+        if (
+            empty($entryData['groups'])
+            || $entryData['resolvedCategoryCount'] !== $entryData['requestedCategoryCount']
+        ) {
+            $request->session()->forget('analysis_draft');
+
+            return redirect()
+                ->route('analyses.create')
+                ->withErrors(['selected_categories' => __('messages.selection_outdated')]);
+        }
+
+        return view('analyses.results', [
+            'draft' => $draft,
+            ...$entryData,
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'patient.identifier' => ['required', 'string', 'max:80'],
-            'patient.first_name' => ['required', 'string', 'max:120'],
-            'patient.last_name' => ['required', 'string', 'max:120'],
-            'patient.sex' => ['required', 'in:male,female,other'],
-            'patient.age' => ['nullable', 'integer', 'min:0', 'max:130'],
-            'patient.phone' => ['nullable', 'string', 'max:40'],
-            'analysis_date' => ['required', 'date'],
-            'selected_categories' => ['required', 'array', 'min:1'],
-            'selected_categories.*' => ['integer', 'exists:categories,id'],
-            'results' => ['nullable', 'array'],
-            'notes' => ['nullable', 'string'],
-        ]);
+        $draft = $request->session()->get('analysis_draft');
 
-        $analysis = DB::transaction(function () use ($validated) {
+        if (is_array($draft) && ! empty($draft['selected_categories'])) {
+            $validatedResults = $request->validate([
+                'results' => ['required', 'array'],
+                'notes' => ['nullable', 'string'],
+            ]);
+
+            $validated = [
+                'patient' => $draft['patient'],
+                'analysis_date' => $draft['analysis_date'],
+                'selected_categories' => collect($draft['selected_categories'])
+                    ->map(fn (mixed $value) => (int) $value)
+                    ->unique()
+                    ->values()
+                    ->all(),
+                'results' => $validatedResults['results'] ?? [],
+                'notes' => $validatedResults['notes'] ?? null,
+            ];
+        } else {
+            $validated = $request->validate([
+                ...$this->selectionRules(),
+                'results' => ['required', 'array'],
+                'notes' => ['nullable', 'string'],
+            ]);
+
+            $validated['selected_categories'] = collect($validated['selected_categories'])
+                ->map(fn (mixed $value) => (int) $value)
+                ->unique()
+                ->values()
+                ->all();
+        }
+
+        $resolvedCategoryIds = Category::query()
+            ->whereIn('id', $validated['selected_categories'])
+            ->pluck('id')
+            ->map(fn (int $value) => (int) $value)
+            ->values()
+            ->all();
+
+        if (count($resolvedCategoryIds) !== count($validated['selected_categories'])) {
+            $request->session()->forget('analysis_draft');
+
+            return redirect()
+                ->route('analyses.create')
+                ->withErrors(['selected_categories' => __('messages.selection_outdated')]);
+        }
+
+        $validated['selected_categories'] = $resolvedCategoryIds;
+
+        $parameters = LabParameter::query()
+            ->whereIn('category_id', $validated['selected_categories'])
+            ->where('is_active', true)
+            ->where('is_visible', true)
+            ->orderBy('sort_order')
+            ->get();
+
+        $results = $validated['results'] ?? [];
+
+        $missingParameter = $parameters->first(function (LabParameter $parameter) use ($results) {
+            $rawValue = trim((string) ($results[$parameter->id] ?? ''));
+
+            return $rawValue === '';
+        });
+
+        if ($missingParameter) {
+            return back()
+                ->withErrors([
+                    'results' => __('messages.result_required_parameter', [
+                        'parameter' => $missingParameter->label(app()->getLocale()),
+                    ]),
+                ])
+                ->withInput();
+        }
+
+        $invalidListParameter = $parameters->first(function (LabParameter $parameter) use ($results) {
+            if ($parameter->value_type !== 'list') {
+                return false;
+            }
+
+            $options = is_array($parameter->options) ? $parameter->options : [];
+
+            if ($options === []) {
+                return false;
+            }
+
+            $rawValue = trim((string) ($results[$parameter->id] ?? ''));
+
+            return ! in_array($rawValue, $options, true);
+        });
+
+        if ($invalidListParameter) {
+            return back()
+                ->withErrors([
+                    'results' => __('messages.result_invalid_option', [
+                        'parameter' => $invalidListParameter->label(app()->getLocale()),
+                    ]),
+                ])
+                ->withInput();
+        }
+
+        $analysis = DB::transaction(function () use ($validated, $parameters, $results) {
             $patient = Patient::query()->updateOrCreate(
                 ['identifier' => $validated['patient']['identifier']],
                 [
@@ -99,20 +229,8 @@ class AnalysisController extends Controller
 
             $analysis->categories()->sync($validated['selected_categories']);
 
-            $parameters = LabParameter::query()
-                ->whereIn('category_id', $validated['selected_categories'])
-                ->where('is_active', true)
-                ->where('is_visible', true)
-                ->get();
-
-            $results = $validated['results'] ?? [];
-
             foreach ($parameters as $parameter) {
                 $rawValue = trim((string) ($results[$parameter->id] ?? ''));
-
-                if ($rawValue === '') {
-                    continue;
-                }
 
                 $numericValue = null;
                 if ($parameter->value_type === 'number' && is_numeric($rawValue)) {
@@ -130,6 +248,8 @@ class AnalysisController extends Controller
 
             return $analysis;
         });
+
+        $request->session()->forget('analysis_draft');
 
         return redirect()
             ->route('analyses.show', $analysis)
@@ -160,6 +280,143 @@ class AnalysisController extends Controller
         ]);
 
         return view('analyses.print', $this->buildReportViewData($analysis));
+    }
+
+    private function loadActiveDisciplines(): Collection
+    {
+        return Discipline::query()
+            ->where('is_active', true)
+            ->with([
+                'categories' => fn ($query) => $query
+                    ->where('is_active', true)
+                    ->orderBy('sort_order'),
+            ])
+            ->orderBy('sort_order')
+            ->get();
+    }
+
+    private function selectionRules(): array
+    {
+        return [
+            'patient.identifier' => ['required', 'string', 'max:80'],
+            'patient.first_name' => ['required', 'string', 'max:120'],
+            'patient.last_name' => ['required', 'string', 'max:120'],
+            'patient.sex' => ['required', 'in:male,female,other'],
+            'patient.age' => ['nullable', 'integer', 'min:0', 'max:130'],
+            'patient.phone' => ['nullable', 'string', 'max:40'],
+            'analysis_date' => ['required', 'date'],
+            'selected_categories' => ['required', 'array', 'min:1'],
+            'selected_categories.*' => ['integer', 'exists:categories,id'],
+        ];
+    }
+
+    private function buildEntryViewData(array $draft): array
+    {
+        $locale = app()->getLocale();
+        $selectedCategoryIds = collect($draft['selected_categories'] ?? [])
+            ->map(fn (mixed $value) => (int) $value)
+            ->unique()
+            ->values()
+            ->all();
+
+        $categories = Category::query()
+            ->whereIn('id', $selectedCategoryIds)
+            ->where('is_active', true)
+            ->with([
+                'discipline',
+                'subcategories' => fn ($query) => $query
+                    ->where('is_active', true)
+                    ->orderBy('sort_order'),
+                'parameters' => fn ($query) => $query
+                    ->where('is_active', true)
+                    ->where('is_visible', true)
+                    ->with('subcategory')
+                    ->orderBy('sort_order'),
+            ])
+            ->orderBy('discipline_id')
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+
+        $groups = [];
+        $parameterCount = 0;
+
+        foreach ($categories as $category) {
+            if (! $category->discipline) {
+                continue;
+            }
+
+            $discipline = $category->discipline;
+            $disciplineId = (string) $discipline->id;
+            $categoryId = (string) $category->id;
+
+            if (! isset($groups[$disciplineId])) {
+                $groups[$disciplineId] = [
+                    'id' => $discipline->id,
+                    'label' => $discipline->label($locale),
+                    'sort_order' => $discipline->sort_order,
+                    'categories' => [],
+                ];
+            }
+
+            $subcategoryGroups = [];
+
+            foreach ($category->parameters as $parameter) {
+                $subcategoryId = $parameter->subcategory_id ? (string) $parameter->subcategory_id : 'none';
+
+                if (! isset($subcategoryGroups[$subcategoryId])) {
+                    $subcategoryGroups[$subcategoryId] = [
+                        'id' => $parameter->subcategory_id,
+                        'label' => $parameter->subcategory
+                            ? $parameter->subcategory->label($locale)
+                            : __('messages.no_subcategory'),
+                        'sort_order' => $parameter->subcategory?->sort_order ?? 0,
+                        'rows' => [],
+                    ];
+                }
+
+                $subcategoryGroups[$subcategoryId]['rows'][] = [
+                    'id' => $parameter->id,
+                    'label' => $parameter->label($locale),
+                    'value_type' => $parameter->value_type,
+                    'options' => is_array($parameter->options) ? $parameter->options : [],
+                    'unit' => $parameter->unit,
+                    'reference' => $parameter->referenceRange(),
+                ];
+
+                $parameterCount += 1;
+            }
+
+            $groups[$disciplineId]['categories'][$categoryId] = [
+                'id' => $category->id,
+                'label' => $category->label($locale),
+                'sort_order' => $category->sort_order,
+                'subcategories' => collect($subcategoryGroups)
+                    ->sortBy('sort_order')
+                    ->values()
+                    ->all(),
+            ];
+        }
+
+        $groups = collect($groups)
+            ->sortBy('sort_order')
+            ->map(function (array $discipline) {
+                $discipline['categories'] = collect($discipline['categories'])
+                    ->sortBy('sort_order')
+                    ->values()
+                    ->all();
+
+                return $discipline;
+            })
+            ->values()
+            ->all();
+
+        return [
+            'groups' => $groups,
+            'parameterCount' => $parameterCount,
+            'requestedCategoryCount' => count($selectedCategoryIds),
+            'resolvedCategoryCount' => $categories->count(),
+        ];
     }
 
     private function buildReportViewData(LabAnalysis $analysis): array

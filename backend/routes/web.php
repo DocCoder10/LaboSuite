@@ -12,6 +12,8 @@ Route::get('/lang/{locale}', [LocaleController::class, 'switch'])->name('locale.
 
 Route::get('/analyses', [AnalysisController::class, 'index'])->name('analyses.index');
 Route::get('/analyses/new', [AnalysisController::class, 'create'])->name('analyses.create');
+Route::post('/analyses/new/selection', [AnalysisController::class, 'storeSelection'])->name('analyses.selection.store');
+Route::get('/analyses/new/results', [AnalysisController::class, 'results'])->name('analyses.results');
 Route::post('/analyses', [AnalysisController::class, 'store'])->name('analyses.store');
 Route::get('/analyses/{analysis}', [AnalysisController::class, 'show'])->name('analyses.show');
 Route::get('/analyses/{analysis}/print', [AnalysisController::class, 'print'])->name('analyses.print');
