@@ -233,10 +233,9 @@ class AnalysisController extends Controller
             foreach ($parameters as $parameter) {
                 $rawValue = trim((string) ($results[$parameter->id] ?? ''));
 
-                $numericValue = null;
-                if ($parameter->value_type === 'number' && is_numeric($rawValue)) {
-                    $numericValue = (float) $rawValue;
-                }
+                $numericValue = $parameter->value_type === 'number'
+                    ? $this->parseNumericValue($rawValue)
+                    : null;
 
                 AnalysisResult::query()->create([
                     'analysis_id' => $analysis->id,
@@ -545,8 +544,12 @@ class AnalysisController extends Controller
 
     private function isAbnormal(LabParameter $parameter, string $rawValue): bool
     {
-        if ($parameter->value_type === 'number' && is_numeric($rawValue)) {
-            $value = (float) $rawValue;
+        if ($parameter->value_type === 'number') {
+            $value = $this->parseNumericValue($rawValue);
+
+            if ($value === null) {
+                return false;
+            }
 
             if ($parameter->normal_min !== null && $value < (float) $parameter->normal_min) {
                 return true;
@@ -604,7 +607,7 @@ class AnalysisController extends Controller
 
         $numericValue = $result->result_numeric !== null
             ? (float) $result->result_numeric
-            : (is_numeric($result->result_value ?? null) ? (float) $result->result_value : null);
+            : $this->parseNumericValue($result->result_value);
 
         if ($numericValue === null) {
             return null;
@@ -619,5 +622,22 @@ class AnalysisController extends Controller
         }
 
         return null;
+    }
+
+    private function parseNumericValue(?string $rawValue): ?float
+    {
+        $value = trim((string) $rawValue);
+
+        if ($value === '') {
+            return null;
+        }
+
+        $normalized = str_replace([',', ' '], ['.', ''], $value);
+
+        if (preg_match('/^-?\d+(?:\.\d+)?$/', $normalized) !== 1) {
+            return null;
+        }
+
+        return (float) $normalized;
     }
 }

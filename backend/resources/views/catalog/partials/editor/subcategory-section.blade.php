@@ -59,7 +59,7 @@
                                 </div>
                             </div>
                             <label class="lms-field" data-value-type-field="number"><span>{{ __('messages.unit') }}</span><input name="unit" data-editor-input="subcategory-parameter-unit"></label>
-                            <label class="lms-field" data-value-type-field="number text"><span>{{ __('messages.reference') }}</span><input name="reference" data-editor-input="subcategory-parameter-reference" placeholder="12 - 16"></label>
+                            <label class="lms-field" data-value-type-field="number text"><span>{{ __('messages.reference') }}</span><input name="reference" data-editor-input="subcategory-parameter-reference" placeholder="{{ __('messages.reference_placeholder_number') }}"></label>
                             <label class="lms-field" data-value-type-field="list"><span>{{ __('messages.options_csv') }}</span><input name="options_csv" data-editor-input="subcategory-parameter-options" placeholder="NEGATIF, POSITIF"></label>
                             <label class="lms-checkbox" data-value-type-field="list">
                                 <input type="checkbox" data-default-option-toggle data-editor-input="subcategory-parameter-default-toggle">

@@ -50,6 +50,7 @@ return [
     'parameter' => 'Element terminal',
     'result' => 'Resultat',
     'reference' => 'Reference',
+    'reference_placeholder_number' => 'Ex: 12,5 - 16,8 (ou 12.5 - 16.8)',
     'unit' => 'Unite',
     'report_central_title' => 'Comptes Rendu des resultats d\'analyses',
     'no_subcategory' => 'General',

@@ -615,7 +615,7 @@ li.is-dragging > details > .lms-tree-node {
     width: 48%;
 }
 
-.lms-report-row-category td {
+.lms-report-row-discipline td {
     background: #f3f4f6;
     color: #111827;
 }
@@ -720,7 +720,7 @@ body.lms-print-body {
     }
 }
 
-@media (max-width: 1024px) {
+@media screen and (max-width: 1024px) {
     .lms-topbar {
         grid-template-columns: 1fr;
     }
@@ -791,6 +791,10 @@ body.lms-print-body {
         border: 0;
         box-shadow: none;
         padding: 0;
+    }
+
+    .lms-report-patient-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .lms-report-head,

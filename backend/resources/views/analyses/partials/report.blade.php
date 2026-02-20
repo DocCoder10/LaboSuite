@@ -74,7 +74,7 @@
             </thead>
             <tbody>
                 @foreach ($groupedResults as $discipline)
-                    <tr class="lms-report-row lms-report-row-level-0">
+                    <tr class="lms-report-row lms-report-row-level-0 lms-report-row-discipline">
                         <td class="lms-report-analysis-cell lms-report-indented" style="{{ $indentStyle(0) }}">{{ $discipline['label'] }}</td>
                         <td></td>
                         @if ($showUnitColumn)
@@ -101,7 +101,7 @@
                                 }
                             }
                         @endphp
-                        <tr class="lms-report-row lms-report-row-level-1 lms-report-row-category {{ $categoryMergeEnabled && ($categoryMergeRow['is_abnormal'] ?? false) && $highlightAbnormal ? 'is-abnormal' : '' }}">
+                        <tr class="lms-report-row lms-report-row-level-1 {{ $categoryMergeEnabled && ($categoryMergeRow['is_abnormal'] ?? false) && $highlightAbnormal ? 'is-abnormal' : '' }}">
                             <td class="lms-report-analysis-cell lms-report-indented" style="{{ $indentStyle(1) }}">{{ $category['label'] }}</td>
                             <td class="lms-report-result-cell">{{ $categoryMergeEnabled ? ($categoryMergeRow['result'] ?? '') : '' }}</td>
                             @if ($showUnitColumn)

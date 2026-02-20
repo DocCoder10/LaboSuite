@@ -38,6 +38,32 @@ class CatalogHierarchyRulesTest extends TestCase
         ]);
     }
 
+    public function test_numeric_reference_accepts_comma_decimal_values(): void
+    {
+        $discipline = $this->makeDiscipline('bio-dec');
+        $category = $this->makeCategory($discipline, 'glycemie-dec');
+
+        $response = $this->post(route('catalog.parameters.store'), [
+            'category_id' => $category->id,
+            'name' => 'Glycemie',
+            'value_type' => 'number',
+            'unit' => 'g/L',
+            'reference' => '0,70 - 1,10',
+            'sort_order' => 10,
+        ]);
+
+        $response->assertRedirect();
+
+        $parameter = LabParameter::query()
+            ->where('category_id', $category->id)
+            ->where('name', 'Glycemie')
+            ->firstOrFail();
+
+        $this->assertSame(0.7, (float) $parameter->normal_min);
+        $this->assertSame(1.1, (float) $parameter->normal_max);
+        $this->assertNull($parameter->normal_text);
+    }
+
     public function test_adding_subanalysis_converts_parent_analysis_to_container(): void
     {
         $discipline = $this->makeDiscipline('hematologie');
