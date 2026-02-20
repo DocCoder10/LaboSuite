@@ -172,6 +172,40 @@ class CatalogHierarchyRulesTest extends TestCase
         ]);
     }
 
+    public function test_subcategory_delete_with_dependents_requires_force_flag(): void
+    {
+        $discipline = $this->makeDiscipline('delete-guard');
+        $category = $this->makeCategory($discipline, 'delete-guard-cat');
+        $parent = $this->makeSubcategory($category, 'parent', null, 1);
+        $this->makeSubcategory($category, 'child', $parent, 2);
+        $this->makeParameter($discipline, $category, 'Parent Param', $parent);
+
+        $response = $this->delete(route('catalog.subcategories.destroy', $parent));
+
+        $response->assertSessionHasErrors('catalog');
+        $this->assertDatabaseHas('subcategories', ['id' => $parent->id]);
+    }
+
+    public function test_subcategory_delete_with_dependents_can_be_forced(): void
+    {
+        $discipline = $this->makeDiscipline('delete-force');
+        $category = $this->makeCategory($discipline, 'delete-force-cat');
+        $parent = $this->makeSubcategory($category, 'parent', null, 1);
+        $child = $this->makeSubcategory($category, 'child', $parent, 2);
+        $parentParam = $this->makeParameter($discipline, $category, 'Parent Param', $parent);
+        $childParam = $this->makeParameter($discipline, $category, 'Child Param', $child);
+
+        $response = $this->delete(route('catalog.subcategories.destroy', $parent), [
+            'force' => '1',
+        ]);
+
+        $response->assertRedirect();
+        $this->assertDatabaseMissing('subcategories', ['id' => $parent->id]);
+        $this->assertDatabaseMissing('subcategories', ['id' => $child->id]);
+        $this->assertDatabaseMissing('lab_parameters', ['id' => $parentParam->id]);
+        $this->assertDatabaseMissing('lab_parameters', ['id' => $childParam->id]);
+    }
+
     public function test_list_parameter_accepts_matching_default_option(): void
     {
         $discipline = $this->makeDiscipline('micro');

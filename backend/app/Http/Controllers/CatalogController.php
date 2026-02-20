@@ -124,9 +124,11 @@ class CatalogController extends Controller
         return back()->with('status', __('messages.catalog_saved'));
     }
 
-    public function destroyDiscipline(Discipline $discipline): RedirectResponse
+    public function destroyDiscipline(Request $request, Discipline $discipline): RedirectResponse
     {
-        if ($discipline->categories()->exists() || $discipline->parameters()->exists()) {
+        $hasDependents = $discipline->categories()->exists() || $discipline->parameters()->exists();
+
+        if ($hasDependents && ! $request->boolean('force')) {
             return back()->withErrors([
                 'catalog' => __('messages.catalog_delete_has_children'),
             ]);
@@ -221,9 +223,11 @@ class CatalogController extends Controller
         return back()->with('status', __('messages.catalog_saved'));
     }
 
-    public function destroyCategory(Category $category): RedirectResponse
+    public function destroyCategory(Request $request, Category $category): RedirectResponse
     {
-        if ($category->allSubcategories()->exists() || $category->parameters()->exists()) {
+        $hasDependents = $category->allSubcategories()->exists() || $category->parameters()->exists();
+
+        if ($hasDependents && ! $request->boolean('force')) {
             return back()->withErrors([
                 'catalog' => __('messages.catalog_delete_has_children'),
             ]);
@@ -399,15 +403,25 @@ class CatalogController extends Controller
         return back()->with('status', __('messages.catalog_saved'));
     }
 
-    public function destroySubcategory(Subcategory $subcategory): RedirectResponse
+    public function destroySubcategory(Request $request, Subcategory $subcategory): RedirectResponse
     {
-        if ($subcategory->children()->exists() || $subcategory->parameters()->exists()) {
+        $hasDependents = $subcategory->children()->exists() || $subcategory->parameters()->exists();
+
+        if ($hasDependents && ! $request->boolean('force')) {
             return back()->withErrors([
                 'catalog' => __('messages.catalog_delete_has_children'),
             ]);
         }
 
-        $subcategory->delete();
+        DB::transaction(function () use ($request, $subcategory): void {
+            if ($request->boolean('force')) {
+                $this->forceDeleteSubcategoryTree($subcategory);
+
+                return;
+            }
+
+            $subcategory->delete();
+        });
 
         return back()->with('status', __('messages.catalog_saved'));
     }
@@ -900,6 +914,24 @@ class CatalogController extends Controller
         }
 
         return false;
+    }
+
+    private function forceDeleteSubcategoryTree(Subcategory $subcategory): void
+    {
+        $children = Subcategory::query()
+            ->where('parent_subcategory_id', $subcategory->id)
+            ->orderBy('id')
+            ->get();
+
+        foreach ($children as $child) {
+            $this->forceDeleteSubcategoryTree($child);
+        }
+
+        LabParameter::query()
+            ->where('subcategory_id', $subcategory->id)
+            ->delete();
+
+        $subcategory->delete();
     }
 
     private function assertUniqueDisciplineName(string $name, ?int $ignoreId = null): void

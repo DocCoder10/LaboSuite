@@ -355,6 +355,7 @@ class AnalysisController extends Controller
             'results.parameter.discipline',
             'results.parameter.category',
             'results.parameter.subcategory',
+            'results.parameter.subcategory.parent',
         ]);
 
         return view('analyses.edit', [
@@ -720,7 +721,7 @@ class AnalysisController extends Controller
                 'parameters' => fn ($query) => $query
                     ->where('is_active', true)
                     ->where('is_visible', true)
-                    ->with('subcategory')
+                    ->with('subcategory.parent')
                     ->orderBy('sort_order')
                     ->orderBy('id'),
             ])
@@ -761,6 +762,7 @@ class AnalysisController extends Controller
                         'label' => $parameter->subcategory
                             ? $parameter->subcategory->label($locale)
                             : null,
+                        'lineage' => $this->resolveSubcategoryLineage($parameter->subcategory, $locale),
                         'sort_order' => $parameter->subcategory?->sort_order ?? 0,
                         'rows' => [],
                     ];
@@ -969,6 +971,7 @@ class AnalysisController extends Controller
                 $groups[$disciplineId]['categories'][$categoryId]['subcategories'][$subcategoryId] = [
                     'id' => $subcategory?->id,
                     'label' => $subcategory?->label($locale),
+                    'lineage' => $this->resolveSubcategoryLineage($subcategory, $locale),
                     'sort_order' => $subcategory?->sort_order ?? 0,
                     'rows' => [],
                 ];

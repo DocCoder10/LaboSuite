@@ -7,6 +7,8 @@
         $visiblePatientFields = collect($patientFields)
             ->filter(fn (array $field) => (bool) ($field['active'] ?? false))
             ->values();
+        $normalizeLabel = static fn (?string $value): string => mb_strtolower(trim((string) $value));
+        $entryLevelFromDepth = static fn (int $depth): int => max(2, $depth + 1);
     @endphp
 
     <section class="lms-page-head">
@@ -67,34 +69,62 @@
                                         $categoryRows = collect($category['subcategories'] ?? [])->flatMap(fn (array $subgroup) => $subgroup['rows'] ?? [])->values();
                                         $singleCategoryRow = $categoryRows->count() === 1 ? $categoryRows->first() : null;
                                         $showCategoryHeading = $singleCategoryRow === null
-                                            || mb_strtolower(trim((string) ($singleCategoryRow['label'] ?? ''))) !== mb_strtolower(trim((string) ($category['label'] ?? '')));
+                                            || $normalizeLabel($singleCategoryRow['label'] ?? '') !== $normalizeLabel($category['label'] ?? '');
                                     @endphp
 
                                     @if ($showCategoryHeading)
                                         <tr class="lms-category-row">
-                                            <td colspan="4"><strong>{{ $category['label'] }}</strong></td>
+                                            <td colspan="4">
+                                                <span class="lms-entry-label" style="--lms-entry-level: 1;">
+                                                    <strong>{{ $category['label'] }}</strong>
+                                                </span>
+                                            </td>
                                         </tr>
                                     @endif
 
                                     @foreach ($category['subcategories'] as $subcategory)
                                         @php
                                             $rows = $subcategory['rows'] ?? [];
-                                            $subcategoryLabel = trim((string) ($subcategory['label'] ?? ''));
+                                            $lineage = $subcategory['lineage'] ?? [];
                                             $singleRow = count($rows) === 1 ? $rows[0] : null;
-                                            $hideRedundantSubheading = $subcategoryLabel !== ''
+                                            $lastLineage = ! empty($lineage) ? $lineage[count($lineage) - 1] : null;
+                                            $mergeLeafIntoLineage = $singleRow !== null
+                                                && is_array($lastLineage)
+                                                && $normalizeLabel($lastLineage['label'] ?? '') === $normalizeLabel($singleRow['label'] ?? '');
+                                            $lineageToRender = $mergeLeafIntoLineage ? array_slice($lineage, 0, -1) : $lineage;
+                                            $hideRedundantSubheading = ! empty($subcategory['label'])
                                                 && $singleRow !== null
-                                                && mb_strtolower(trim((string) ($singleRow['label'] ?? ''))) === mb_strtolower($subcategoryLabel);
+                                                && $normalizeLabel($singleRow['label'] ?? '') === $normalizeLabel($subcategory['label'] ?? '');
                                         @endphp
 
-                                        @if ($subcategoryLabel !== '' && ! $hideRedundantSubheading)
+                                        @foreach ($lineageToRender as $lineageNode)
                                             <tr class="lms-subheading-row">
-                                                <td colspan="4"><strong>{{ $subcategoryLabel }}</strong></td>
+                                                <td colspan="4">
+                                                    <span class="lms-entry-label" style="--lms-entry-level: {{ $entryLevelFromDepth((int) ($lineageNode['depth'] ?? 1)) }};">
+                                                        <strong>{{ $lineageNode['label'] }}</strong>
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+
+                                        @if (! empty($subcategory['label']) && ! $hideRedundantSubheading && empty($lineageToRender))
+                                            <tr class="lms-subheading-row">
+                                                <td colspan="4">
+                                                    <span class="lms-entry-label" style="--lms-entry-level: 2;">
+                                                        <strong>{{ $subcategory['label'] }}</strong>
+                                                    </span>
+                                                </td>
                                             </tr>
                                         @endif
 
                                         @foreach ($rows as $row)
+                                            @php
+                                                $rowLevel = max(2, 2 + count($lineageToRender));
+                                            @endphp
                                             <tr>
-                                                <td>{{ $row['label'] }}</td>
+                                                <td>
+                                                    <span class="lms-entry-label" style="--lms-entry-level: {{ $rowLevel }};">{{ $row['label'] }}</span>
+                                                </td>
                                                 <td>
                                                     @if ($row['value_type'] === 'number')
                                                         <input type="number" step="any" name="results[{{ $row['id'] }}]" value="{{ old('results.'.$row['id']) }}" required>

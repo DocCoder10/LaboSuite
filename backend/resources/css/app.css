@@ -18,6 +18,11 @@
     --lms-accent: #0f766e;
     --lms-accent-soft: #ccfbf1;
     --lms-danger: #b91c1c;
+    --lms-entry-indent-base: 0.1rem;
+    --lms-entry-indent-step: 0.75rem;
+    --lms-entry-font-size-category: 0.9rem;
+    --lms-entry-font-size-sub: 0.83rem;
+    --lms-entry-font-size-item: 0.86rem;
 }
 
 * {
@@ -650,7 +655,6 @@ li.is-dragging > details > .lms-tree-node {
 
 .lms-subheading-row td {
     background: rgba(148, 163, 184, 0.12);
-    font-size: 0.8rem;
     color: #0f172a;
     padding-top: 0.45rem;
     padding-bottom: 0.45rem;
@@ -658,10 +662,26 @@ li.is-dragging > details > .lms-tree-node {
 
 .lms-category-row td {
     background: rgba(15, 118, 110, 0.1);
-    font-size: 0.84rem;
     color: #0f172a;
     padding-top: 0.5rem;
     padding-bottom: 0.5rem;
+}
+
+.lms-entry-label {
+    display: inline-block;
+    padding-left: calc(var(--lms-entry-indent-base) + (var(--lms-entry-level, 0) * var(--lms-entry-indent-step)));
+}
+
+.lms-category-row .lms-entry-label {
+    font-size: var(--lms-entry-font-size-category);
+}
+
+.lms-subheading-row .lms-entry-label {
+    font-size: var(--lms-entry-font-size-sub);
+}
+
+.lms-table tbody tr:not(.lms-category-row):not(.lms-subheading-row) .lms-entry-label {
+    font-size: var(--lms-entry-font-size-item);
 }
 
 .lms-actions-cell {

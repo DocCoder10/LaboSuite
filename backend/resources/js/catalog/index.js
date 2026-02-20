@@ -27,6 +27,7 @@ import {
     const addChildButton = document.querySelector('[data-add-child]');
     const deleteConfirmDialog = document.getElementById('modal-confirm-delete');
     const deleteConfirmForm = deleteConfirmDialog?.querySelector('[data-delete-confirm-form]');
+    const deleteForceInput = deleteConfirmDialog?.querySelector('[data-delete-force-input]');
     const deleteMessage = deleteConfirmDialog?.querySelector('[data-delete-message]');
     const convertConfirmDialog = document.getElementById('modal-confirm-convert-values');
     const convertConfirmButton = convertConfirmDialog?.querySelector('[data-convert-confirm]');
@@ -1363,7 +1364,13 @@ import {
             deleteConfirmForm.setAttribute('action', form.getAttribute('action') || '');
 
             const hasChildren = currentSelection?.node?.dataset?.hasChildren === '1';
-            deleteMessage.textContent = hasChildren ? labels.confirmDeleteWithChildren : labels.confirmDelete;
+            const hasParameters = currentSelection?.node?.dataset?.hasParameters === '1';
+            const hasDependents = hasChildren || hasParameters;
+            deleteMessage.textContent = hasDependents ? labels.confirmDeleteWithChildren : labels.confirmDelete;
+
+            if (deleteForceInput) {
+                deleteForceInput.value = hasDependents ? '1' : '0';
+            }
 
             openDialog(deleteConfirmDialog);
         });
