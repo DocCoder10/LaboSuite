@@ -3,6 +3,10 @@
 @section('content')
     @php
         $patient = $draft['patient'] ?? [];
+        $extraFields = is_array($patient['extra_fields'] ?? null) ? $patient['extra_fields'] : [];
+        $visiblePatientFields = collect($patientFields)
+            ->filter(fn (array $field) => (bool) ($field['active'] ?? false))
+            ->values();
     @endphp
 
     <section class="lms-page-head">
@@ -15,12 +19,22 @@
     <section class="lms-card lms-stack">
         <h3>{{ __('messages.patient_summary') }}</h3>
         <div class="lms-grid-3">
-            <p><strong>{{ __('messages.patient_identifier') }}:</strong> {{ $patient['identifier'] ?? '-' }}</p>
-            <p><strong>{{ __('messages.first_name') }}:</strong> {{ $patient['first_name'] ?? '-' }}</p>
-            <p><strong>{{ __('messages.last_name') }}:</strong> {{ $patient['last_name'] ?? '-' }}</p>
-            <p><strong>{{ __('messages.sex') }}:</strong> {{ __('messages.'.($patient['sex'] ?? 'other')) }}</p>
-            <p><strong>{{ __('messages.age') }}:</strong> {{ $patient['age'] ?? '-' }}</p>
-            <p><strong>{{ __('messages.phone') }}:</strong> {{ $patient['phone'] ?? '-' }}</p>
+            @foreach ($visiblePatientFields as $field)
+                @php
+                    $fieldKey = (string) ($field['key'] ?? '');
+                    $fieldLabel = (string) ($field['label'] ?? $fieldKey);
+                    $rawValue = ($field['built_in'] ?? false)
+                        ? ($patient[$fieldKey] ?? null)
+                        : ($extraFields[$fieldKey] ?? null);
+
+                    if ($fieldKey === 'sex') {
+                        $displayValue = __('messages.'.($rawValue ?? 'other'));
+                    } else {
+                        $displayValue = $rawValue;
+                    }
+                @endphp
+                <p><strong>{{ $fieldLabel }}:</strong> {{ $displayValue === null || $displayValue === '' ? '-' : $displayValue }}</p>
+            @endforeach
             <p><strong>{{ __('messages.analysis_date') }}:</strong> {{ $draft['analysis_date'] ?? '-' }}</p>
         </div>
     </section>

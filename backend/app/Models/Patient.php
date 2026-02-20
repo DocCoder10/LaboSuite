@@ -33,4 +33,21 @@ class Patient extends Model
     {
         return trim("{$this->last_name} {$this->first_name}");
     }
+
+    public function getDisplayIdentifierAttribute(): ?string
+    {
+        $publicIdentifier = trim((string) ($this->extra_fields['public_identifier'] ?? ''));
+
+        if ($publicIdentifier !== '') {
+            return $publicIdentifier;
+        }
+
+        $identifier = trim((string) $this->identifier);
+
+        if ($identifier === '' || str_starts_with($identifier, 'SYS-')) {
+            return null;
+        }
+
+        return $identifier;
+    }
 }

@@ -13,7 +13,7 @@
     <section class="lms-card lms-stack">
         <div class="lms-grid-3">
             <p><strong>{{ __('messages.patient') }}:</strong> {{ $analysis->patient?->full_name ?? '-' }}</p>
-            <p><strong>{{ __('messages.patient_identifier') }}:</strong> {{ $analysis->patient?->identifier ?? '-' }}</p>
+            <p><strong>{{ __('messages.patient_identifier') }}:</strong> {{ $analysis->patient?->display_identifier ?? '-' }}</p>
             <p><strong>{{ __('messages.analysis_date') }}:</strong> {{ optional($analysis->analysis_date)->format('Y-m-d') }}</p>
             <p><strong>{{ __('messages.created_at') }}:</strong> {{ optional($analysis->created_at)->format('Y-m-d H:i') }}</p>
             <p><strong>{{ __('messages.updated_at') }}:</strong> {{ optional($analysis->updated_at)->format('Y-m-d H:i') }}</p>

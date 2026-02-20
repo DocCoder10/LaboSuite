@@ -47,12 +47,12 @@
         <h4 class="lms-report-patient-title">INFORMATIONS PATIENT</h4>
         <div class="lms-report-patient-grid">
             <p><strong>{{ __('messages.patient') }}:</strong> {{ $analysis->patient?->full_name ?: '-' }}</p>
-            <p><strong>{{ __('messages.sex') }}:</strong> {{ $patientSexLabel }}</p>
             <p><strong>{{ __('messages.age') }}:</strong> {{ $analysis->patient?->age ?? '-' }}</p>
-            <p><strong>ID:</strong> {{ $analysis->patient?->identifier ?: '-' }}</p>
+            <p><strong>{{ __('messages.sex') }}:</strong> {{ $patientSexLabel }}</p>
+            <p><strong>{{ __('messages.phone') }}:</strong> {{ $analysis->patient?->phone ?: '-' }}</p>
+            <p><strong>ID:</strong> {{ $analysis->patient?->display_identifier ?: '-' }}</p>
             <p><strong>{{ __('messages.analysis_date') }}:</strong> {{ $analysisDate ?: '-' }}</p>
             <p><strong>{{ __('messages.analysis_number') }}:</strong> {{ $analysis->analysis_number ?: '-' }}</p>
-            <p><strong>{{ __('messages.phone') }}:</strong> {{ $analysis->patient?->phone ?: '-' }}</p>
         </div>
     </section>
 

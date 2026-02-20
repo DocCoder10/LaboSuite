@@ -200,6 +200,109 @@ body.lms-body {
     gap: 0.8rem;
 }
 
+.lms-settings-shell {
+    display: grid;
+    gap: 1rem;
+}
+
+.lms-settings-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.7rem;
+}
+
+.lms-settings-nav-link {
+    text-decoration: none;
+    border: 1px solid var(--lms-border);
+    background: #ffffff;
+    color: var(--lms-ink);
+    border-radius: 999px;
+    padding: 0.5rem 0.8rem;
+    font-size: 0.86rem;
+    font-weight: 600;
+}
+
+.lms-settings-nav-link.is-active {
+    background: var(--lms-accent);
+    color: #ffffff;
+    border-color: transparent;
+}
+
+.lms-settings-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.8rem;
+}
+
+.lms-settings-head h3 {
+    margin: 0;
+}
+
+.lms-table-patient-fields {
+    font-size: 0.86rem;
+}
+
+.lms-table-patient-fields th {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: #334155;
+}
+
+.lms-table-patient-fields td {
+    vertical-align: middle;
+}
+
+.lms-field-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.22rem 0.5rem;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    font-size: 0.78rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.lms-field-chip.is-active {
+    color: #14532d;
+    background: #dcfce7;
+    border-color: #86efac;
+}
+
+.lms-field-chip.is-inactive {
+    color: #334155;
+    background: #e2e8f0;
+    border-color: #cbd5e1;
+}
+
+.lms-field-chip.is-delete {
+    color: #7f1d1d;
+    background: #fee2e2;
+    border-color: #fca5a5;
+}
+
+.lms-table-patient-fields .lms-table-actions {
+    gap: 0.45rem;
+}
+
+.lms-table-patient-fields .lms-btn {
+    padding: 0.38rem 0.62rem;
+    font-size: 0.8rem;
+}
+
+.lms-table-patient-fields tr.is-marked-delete {
+    background: #fff1f2;
+}
+
+.lms-btn-soft.is-toggled {
+    border-color: #16a34a;
+    color: #14532d;
+    background: #f0fdf4;
+}
+
 .lms-catalog-layout {
     display: grid;
     grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.6fr);
@@ -869,6 +972,21 @@ body.lms-print-body {
 @media screen and (max-width: 640px) {
     .lms-list-filters {
         grid-template-columns: 1fr;
+    }
+
+    .lms-settings-head {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .lms-settings-nav {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .lms-settings-nav-link {
+        border-radius: 10px;
+        text-align: center;
     }
 
     .lms-filter-search,

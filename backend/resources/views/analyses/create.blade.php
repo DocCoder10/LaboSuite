@@ -4,7 +4,11 @@
     @php
         $locale = app()->getLocale();
         $draftPatient = $draft['patient'] ?? [];
+        $draftExtraFields = is_array($draftPatient['extra_fields'] ?? null) ? $draftPatient['extra_fields'] : [];
         $draftSelectedCategories = $draft['selected_categories'] ?? [];
+        $visiblePatientFields = collect($patientFields)
+            ->filter(fn (array $field) => (bool) ($field['active'] ?? false))
+            ->values();
     @endphp
 
     <form method="POST" action="{{ route('analyses.selection.store') }}" class="lms-grid">
@@ -12,38 +16,57 @@
 
         <section class="lms-card lms-stack">
             <h3>{{ __('messages.step_patient') }}</h3>
+
             <div class="lms-grid-3">
-                <label class="lms-field">
-                    <span>{{ __('messages.patient_identifier') }}</span>
-                    <input type="text" name="patient[identifier]" value="{{ old('patient.identifier', $draftPatient['identifier'] ?? '') }}" required>
-                </label>
-                <label class="lms-field">
-                    <span>{{ __('messages.first_name') }}</span>
-                    <input type="text" name="patient[first_name]" value="{{ old('patient.first_name', $draftPatient['first_name'] ?? '') }}" required>
-                </label>
-                <label class="lms-field">
-                    <span>{{ __('messages.last_name') }}</span>
-                    <input type="text" name="patient[last_name]" value="{{ old('patient.last_name', $draftPatient['last_name'] ?? '') }}" required>
-                </label>
-                <label class="lms-field">
-                    <span>{{ __('messages.sex') }}</span>
+                @foreach ($visiblePatientFields as $field)
                     @php
-                        $selectedSex = old('patient.sex', $draftPatient['sex'] ?? 'male');
+                        $fieldKey = (string) ($field['key'] ?? '');
+                        $fieldLabel = (string) ($field['label'] ?? $fieldKey);
+                        $fieldType = (string) ($field['type'] ?? 'text');
+                        $isBuiltIn = (bool) ($field['built_in'] ?? false);
+                        $isRequired = (bool) ($field['required'] ?? false);
                     @endphp
-                    <select name="patient[sex]" required>
-                        <option value="male" @selected($selectedSex === 'male')>{{ __('messages.male') }}</option>
-                        <option value="female" @selected($selectedSex === 'female')>{{ __('messages.female') }}</option>
-                        <option value="other" @selected($selectedSex === 'other')>{{ __('messages.other') }}</option>
-                    </select>
-                </label>
-                <label class="lms-field">
-                    <span>{{ __('messages.age') }}</span>
-                    <input type="number" name="patient[age]" min="0" max="130" value="{{ old('patient.age', $draftPatient['age'] ?? '') }}">
-                </label>
-                <label class="lms-field">
-                    <span>{{ __('messages.phone') }}</span>
-                    <input type="text" name="patient[phone]" value="{{ old('patient.phone', $draftPatient['phone'] ?? '') }}">
-                </label>
+
+                    <label class="lms-field">
+                        <span>{{ $fieldLabel }}</span>
+
+                        @if ($fieldKey === 'sex')
+                            @php
+                                $selectedSex = old('patient.sex', $draftPatient['sex'] ?? 'male');
+                            @endphp
+                            <select name="patient[sex]" @required($isRequired)>
+                                <option value="male" @selected($selectedSex === 'male')>{{ __('messages.male') }}</option>
+                                <option value="female" @selected($selectedSex === 'female')>{{ __('messages.female') }}</option>
+                                <option value="other" @selected($selectedSex === 'other')>{{ __('messages.other') }}</option>
+                            </select>
+                        @elseif ($fieldKey === 'identifier' && $patientIdentifierRequired)
+                            @php
+                                $identifierValue = old('patient.identifier', $draftPatient['identifier'] ?? '');
+                            @endphp
+                            <input type="text" value="{{ $identifierValue }}" placeholder="{{ __('messages.identifier_auto_generated') }}" readonly>
+                            <input type="hidden" name="patient[identifier]" value="{{ $identifierValue }}">
+                        @else
+                            @php
+                                $fieldName = $isBuiltIn
+                                    ? 'patient['.$fieldKey.']'
+                                    : 'patient[extra_fields]['.$fieldKey.']';
+
+                                $value = $isBuiltIn
+                                    ? old('patient.'.$fieldKey, $draftPatient[$fieldKey] ?? '')
+                                    : old('patient.extra_fields.'.$fieldKey, $draftExtraFields[$fieldKey] ?? '');
+                            @endphp
+
+                            <input
+                                type="{{ $fieldType === 'number' ? 'number' : 'text' }}"
+                                name="{{ $fieldName }}"
+                                value="{{ $value }}"
+                                @if ($fieldKey === 'age') min="0" max="130" @endif
+                                @if ($fieldType === 'number') step="any" @endif
+                                @required($isRequired)
+                            >
+                        @endif
+                    </label>
+                @endforeach
             </div>
 
             <label class="lms-field">

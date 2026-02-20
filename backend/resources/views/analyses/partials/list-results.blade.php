@@ -21,7 +21,7 @@
                         <td>{{ $analysis->analysis_number }}</td>
                         <td>
                             <div>{{ $analysis->patient?->full_name ?? '-' }}</div>
-                            <small class="lms-muted">{{ $analysis->patient?->identifier ?? '-' }}</small>
+                            <small class="lms-muted">{{ $analysis->patient?->display_identifier ?? '-' }}</small>
                         </td>
                         <td>
                             <div>{{ optional($analysis->analysis_date)->format('Y-m-d') }}</div>

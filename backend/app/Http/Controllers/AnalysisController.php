@@ -10,11 +10,13 @@ use App\Models\LabParameter;
 use App\Models\LabSetting;
 use App\Models\Patient;
 use App\Models\Subcategory;
+use App\Support\PatientFieldManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class AnalysisController extends Controller
@@ -96,17 +98,22 @@ class AnalysisController extends Controller
     public function create(Request $request): View
     {
         $draft = $request->session()->get('analysis_draft', []);
+        $patientForm = $this->patientFormConfig();
 
         return view('analyses.create', [
             'analysisDate' => $draft['analysis_date'] ?? now()->toDateString(),
             'disciplines' => $this->loadActiveDisciplines(),
             'draft' => $draft,
+            'patientFields' => $patientForm['fields'],
+            'patientIdentifierRequired' => $patientForm['identifier_required'],
         ]);
     }
 
     public function storeSelection(Request $request): RedirectResponse
     {
-        $validated = $request->validate($this->selectionRules());
+        $patientForm = $this->patientFormConfig();
+
+        $validated = $request->validate($this->selectionRules($patientForm));
 
         $validated['selected_categories'] = collect($validated['selected_categories'])
             ->map(fn (mixed $value) => (int) $value)
@@ -114,15 +121,10 @@ class AnalysisController extends Controller
             ->values()
             ->all();
 
+        $patient = $this->normalizePatientData($validated['patient'] ?? [], $patientForm);
+
         $request->session()->put('analysis_draft', [
-            'patient' => [
-                'identifier' => $validated['patient']['identifier'],
-                'first_name' => $validated['patient']['first_name'],
-                'last_name' => $validated['patient']['last_name'],
-                'sex' => $validated['patient']['sex'],
-                'age' => $validated['patient']['age'] ?? null,
-                'phone' => $validated['patient']['phone'] ?? null,
-            ],
+            'patient' => $patient,
             'analysis_date' => $validated['analysis_date'],
             'selected_categories' => $validated['selected_categories'],
         ]);
@@ -132,6 +134,7 @@ class AnalysisController extends Controller
 
     public function results(Request $request): RedirectResponse|View
     {
+        $patientForm = $this->patientFormConfig();
         $draft = $request->session()->get('analysis_draft');
 
         if (! is_array($draft) || empty($draft['selected_categories'])) {
@@ -155,12 +158,14 @@ class AnalysisController extends Controller
 
         return view('analyses.results', [
             'draft' => $draft,
+            'patientFields' => $patientForm['fields'],
             ...$entryData,
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
+        $patientForm = $this->patientFormConfig();
         $draft = $request->session()->get('analysis_draft');
 
         if (is_array($draft) && ! empty($draft['selected_categories'])) {
@@ -170,7 +175,10 @@ class AnalysisController extends Controller
             ]);
 
             $validated = [
-                'patient' => $draft['patient'],
+                'patient' => $this->normalizePatientData(
+                    is_array($draft['patient'] ?? null) ? $draft['patient'] : [],
+                    $patientForm
+                ),
                 'analysis_date' => $draft['analysis_date'],
                 'selected_categories' => collect($draft['selected_categories'])
                     ->map(fn (mixed $value) => (int) $value)
@@ -182,11 +190,12 @@ class AnalysisController extends Controller
             ];
         } else {
             $validated = $request->validate([
-                ...$this->selectionRules(),
+                ...$this->selectionRules($patientForm),
                 'results' => ['required', 'array'],
                 'notes' => ['nullable', 'string'],
             ]);
 
+            $validated['patient'] = $this->normalizePatientData($validated['patient'] ?? [], $patientForm);
             $validated['selected_categories'] = collect($validated['selected_categories'])
                 ->map(fn (mixed $value) => (int) $value)
                 ->unique()
@@ -263,16 +272,7 @@ class AnalysisController extends Controller
         }
 
         $analysis = DB::transaction(function () use ($validated, $parameters, $results) {
-            $patient = Patient::query()->updateOrCreate(
-                ['identifier' => $validated['patient']['identifier']],
-                [
-                    'first_name' => $validated['patient']['first_name'],
-                    'last_name' => $validated['patient']['last_name'],
-                    'sex' => $validated['patient']['sex'],
-                    'age' => $validated['patient']['age'] ?? null,
-                    'phone' => $validated['patient']['phone'] ?? null,
-                ]
-            );
+            $patient = $this->resolvePatientRecord($validated['patient']);
 
             $analysis = LabAnalysis::query()->create([
                 'analysis_number' => 'PENDING',
@@ -484,19 +484,219 @@ class AnalysisController extends Controller
             ->get();
     }
 
-    private function selectionRules(): array
+    private function selectionRules(array $patientForm): array
     {
-        return [
-            'patient.identifier' => ['required', 'string', 'max:80'],
+        $rules = [
             'patient.first_name' => ['required', 'string', 'max:120'],
             'patient.last_name' => ['required', 'string', 'max:120'],
-            'patient.sex' => ['required', 'in:male,female,other'],
-            'patient.age' => ['nullable', 'integer', 'min:0', 'max:130'],
-            'patient.phone' => ['nullable', 'string', 'max:40'],
+            'patient.age' => ['required', 'integer', 'min:0', 'max:130'],
             'analysis_date' => ['required', 'date'],
             'selected_categories' => ['required', 'array', 'min:1'],
             'selected_categories.*' => ['integer', 'exists:categories,id'],
         ];
+
+        $fieldMap = collect($patientForm['fields'] ?? [])->keyBy('key');
+
+        if (($fieldMap['sex']['active'] ?? false) === true) {
+            $rules['patient.sex'] = ['required', 'in:male,female,other'];
+        }
+
+        if (($fieldMap['phone']['active'] ?? false) === true) {
+            $rules['patient.phone'] = ['nullable', 'string', 'max:40'];
+        }
+
+        if (($fieldMap['identifier']['active'] ?? false) === true || ($patientForm['identifier_required'] ?? false)) {
+            $rules['patient.identifier'] = ['nullable', 'string', 'max:80'];
+        }
+
+        $activeCustomFields = collect($patientForm['fields'] ?? [])
+            ->filter(fn (array $field) => ! ($field['built_in'] ?? false) && ($field['active'] ?? false))
+            ->values();
+
+        if ($activeCustomFields->isNotEmpty()) {
+            $rules['patient.extra_fields'] = ['nullable', 'array'];
+        }
+
+        foreach ($activeCustomFields as $field) {
+            $fieldKey = $field['key'] ?? '';
+
+            if (! is_string($fieldKey) || $fieldKey === '') {
+                continue;
+            }
+
+            $ruleSet = ['nullable'];
+
+            if (($field['type'] ?? 'text') === 'number') {
+                $ruleSet[] = 'numeric';
+            } else {
+                $ruleSet[] = 'string';
+                $ruleSet[] = 'max:255';
+            }
+
+            $rules['patient.extra_fields.'.$fieldKey] = $ruleSet;
+        }
+
+        return $rules;
+    }
+
+    private function patientFormConfig(): array
+    {
+        return PatientFieldManager::resolved(LabSetting::getValue('patient_form', []));
+    }
+
+    private function normalizePatientData(array $patientInput, array $patientForm): array
+    {
+        $fieldMap = collect($patientForm['fields'] ?? [])->keyBy('key');
+        $identifierRequired = (bool) ($patientForm['identifier_required'] ?? false);
+
+        $firstName = trim((string) ($patientInput['first_name'] ?? ''));
+        $lastName = trim((string) ($patientInput['last_name'] ?? ''));
+        $age = (int) ($patientInput['age'] ?? 0);
+
+        $sexActive = (bool) ($fieldMap['sex']['active'] ?? true);
+        $phoneActive = (bool) ($fieldMap['phone']['active'] ?? true);
+        $identifierActive = (bool) ($fieldMap['identifier']['active'] ?? true) || $identifierRequired;
+
+        $sex = $sexActive ? (string) ($patientInput['sex'] ?? 'other') : 'other';
+        $phone = $phoneActive ? trim((string) ($patientInput['phone'] ?? '')) : '';
+
+        $identifier = $identifierActive
+            ? trim((string) ($patientInput['identifier'] ?? ''))
+            : '';
+
+        $identifierGenerated = false;
+
+        if ($identifierRequired && $identifier === '') {
+            $identifier = $this->generateStructuredIdentifier($firstName, $lastName);
+            $identifierGenerated = true;
+        }
+
+        $extraFieldsInput = is_array($patientInput['extra_fields'] ?? null) ? $patientInput['extra_fields'] : [];
+        $extraFields = [];
+
+        foreach ($patientForm['fields'] ?? [] as $field) {
+            if (($field['built_in'] ?? false) || ! ($field['active'] ?? false)) {
+                continue;
+            }
+
+            $key = (string) ($field['key'] ?? '');
+
+            if ($key === '') {
+                continue;
+            }
+
+            $rawValue = $extraFieldsInput[$key] ?? null;
+
+            if (($field['type'] ?? 'text') === 'number') {
+                if ($rawValue === null || trim((string) $rawValue) === '') {
+                    $extraFields[$key] = null;
+                    continue;
+                }
+
+                $normalizedNumeric = $this->parseNumericValue((string) $rawValue);
+                $extraFields[$key] = $normalizedNumeric;
+                continue;
+            }
+
+            $textValue = trim((string) $rawValue);
+            $extraFields[$key] = $textValue !== '' ? $textValue : null;
+        }
+
+        return [
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'age' => $age,
+            'sex' => $sex,
+            'phone' => $phone !== '' ? $phone : null,
+            'identifier' => $identifier !== '' ? $identifier : null,
+            'identifier_generated' => $identifierGenerated,
+            'extra_fields' => $extraFields,
+        ];
+    }
+
+    private function resolvePatientRecord(array $patientData): Patient
+    {
+        $publicIdentifier = trim((string) ($patientData['identifier'] ?? ''));
+        $identifierGenerated = (bool) ($patientData['identifier_generated'] ?? false);
+
+        if ($identifierGenerated && $publicIdentifier !== '' && Patient::query()->where('identifier', $publicIdentifier)->exists()) {
+            $publicIdentifier = $this->generateStructuredIdentifier(
+                (string) ($patientData['first_name'] ?? ''),
+                (string) ($patientData['last_name'] ?? '')
+            );
+            $patientData['identifier'] = $publicIdentifier;
+        }
+
+        $internalIdentifier = $publicIdentifier !== '' ? $publicIdentifier : $this->generateTechnicalIdentifier();
+
+        $extraFields = is_array($patientData['extra_fields'] ?? null) ? $patientData['extra_fields'] : [];
+        $extraFields['public_identifier'] = $publicIdentifier !== '' ? $publicIdentifier : null;
+
+        $payload = [
+            'first_name' => (string) ($patientData['first_name'] ?? ''),
+            'last_name' => (string) ($patientData['last_name'] ?? ''),
+            'sex' => (string) ($patientData['sex'] ?? 'other'),
+            'age' => (int) ($patientData['age'] ?? 0),
+            'phone' => $patientData['phone'] ?? null,
+            'extra_fields' => $extraFields,
+        ];
+
+        if ($publicIdentifier !== '') {
+            return Patient::query()->updateOrCreate(
+                ['identifier' => $internalIdentifier],
+                $payload
+            );
+        }
+
+        return Patient::query()->create([
+            'identifier' => $internalIdentifier,
+            ...$payload,
+        ]);
+    }
+
+    private function generateStructuredIdentifier(string $firstName, string $lastName): string
+    {
+        $firstInitial = Str::upper(Str::substr(Str::slug($firstName, ''), 0, 1));
+        $lastInitial = Str::upper(Str::substr(Str::slug($lastName, ''), 0, 1));
+
+        $prefix = ($lastInitial !== '' ? $lastInitial : 'X').($firstInitial !== '' ? $firstInitial : 'X');
+        $lastAnalysisId = (int) (LabAnalysis::query()->max('id') ?? 0);
+        $sequence = max(1, $lastAnalysisId + 1);
+
+        while (true) {
+            $numericPart = str_pad((string) ($sequence % 1000), 3, '0', STR_PAD_LEFT);
+            $overflow = intdiv(max(0, $sequence - 1), 1000);
+            $suffix = $overflow > 0 ? Str::upper($this->alphaSequence($overflow - 1)) : '';
+            $candidate = $prefix.$numericPart.$suffix;
+
+            if (! Patient::query()->where('identifier', $candidate)->exists()) {
+                return $candidate;
+            }
+
+            $sequence += 1;
+        }
+    }
+
+    private function alphaSequence(int $index): string
+    {
+        $result = '';
+        $cursor = $index;
+
+        while ($cursor >= 0) {
+            $result = chr(($cursor % 26) + 65).$result;
+            $cursor = intdiv($cursor, 26) - 1;
+        }
+
+        return $result;
+    }
+
+    private function generateTechnicalIdentifier(): string
+    {
+        do {
+            $candidate = 'SYS-'.Str::upper(Str::random(10));
+        } while (Patient::query()->where('identifier', $candidate)->exists());
+
+        return $candidate;
     }
 
     private function buildEntryViewData(array $draft): array
