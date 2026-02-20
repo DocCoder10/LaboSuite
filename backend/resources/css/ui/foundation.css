@@ -1,0 +1,134 @@
+:where(a, button, input, select, textarea, [role='button']) {
+    transition: var(--ui-transition);
+}
+
+:focus-visible {
+    outline: none;
+    box-shadow: var(--ui-ring);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    margin: 0;
+    color: var(--ui-text);
+    line-height: 1.2;
+}
+
+p {
+    margin: 0;
+}
+
+.lms-main {
+    display: grid;
+    gap: 1rem;
+}
+
+.lms-page-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.lms-page-head h2 {
+    font-size: 1.9rem;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+}
+
+.lms-inline-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.lms-wrap-actions {
+    flex-wrap: wrap;
+}
+
+.lms-grid {
+    display: grid;
+    gap: 1rem;
+}
+
+.lms-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.lms-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.lms-stack {
+    display: grid;
+    gap: 0.9rem;
+}
+
+.lms-muted {
+    color: var(--ui-text-muted);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.lms-visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.lms-alert {
+    border-radius: var(--ui-radius-sm);
+    border: 1px solid var(--ui-border);
+    padding: 0.9rem 1rem;
+    box-shadow: var(--ui-shadow-xs);
+    background: #ffffff;
+}
+
+.lms-alert ul {
+    margin: 0;
+    padding-left: 1.1rem;
+}
+
+.lms-alert-success {
+    background: #ecfdf5;
+    border-color: #a7f3d0;
+    color: #065f46;
+}
+
+.lms-alert-error {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #991b1b;
+}
+
+@media screen and (max-width: 1120px) {
+    .lms-grid-3 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media screen and (max-width: 768px) {
+    .lms-page-head {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .lms-grid-2,
+    .lms-grid-3 {
+        grid-template-columns: 1fr;
+    }
+}

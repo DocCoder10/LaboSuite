@@ -138,12 +138,37 @@
             return;
         }
 
-        const message = form.dataset.deleteMessage || 'Confirmer la suppression ?';
-
-        if (window.confirm(message)) {
+        if (form.dataset.confirmed === '1') {
+            delete form.dataset.confirmed;
             return;
         }
 
         event.preventDefault();
+
+        const message = form.dataset.deleteMessage || 'Confirmer la suppression ?';
+        const confirmDialog = window.LaboModal?.confirm
+            ? window.LaboModal.confirm({
+                title: 'Suppression',
+                message,
+                okText: 'Supprimer',
+                cancelText: 'Annuler',
+                tone: 'danger',
+            })
+            : Promise.resolve(window.confirm(message));
+
+        confirmDialog.then((isConfirmed) => {
+            if (!isConfirmed) {
+                return;
+            }
+
+            form.dataset.confirmed = '1';
+
+            if (typeof form.requestSubmit === 'function') {
+                form.requestSubmit();
+                return;
+            }
+
+            form.submit();
+        });
     });
 })();

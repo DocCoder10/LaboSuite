@@ -7,39 +7,65 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="lms-body">
-        <div class="lms-shell">
-            <header class="lms-topbar">
-                <div class="lms-brand-wrap">
-                    <p class="lms-kicker">OFFLINE LIS</p>
-                    <h1 class="lms-brand">{{ __('messages.app_name') }}</h1>
+        @php
+            $identity = \App\Models\LabSetting::getValue('lab_identity', []);
+            if (! is_array($identity)) {
+                $identity = [];
+            }
+
+            $appName = trim((string) ($identity['name'] ?? __('messages.app_name')));
+            if ($appName === '') {
+                $appName = __('messages.app_name');
+            }
+
+            $appVersion = trim((string) ($identity['app_version'] ?? env('APP_VERSION', 'v1.0.0')));
+            if ($appVersion === '') {
+                $appVersion = 'v1.0.0';
+            }
+
+            $avatarLabel = collect(preg_split('/\s+/', $appName) ?: [])
+                ->filter(fn ($chunk) => $chunk !== '')
+                ->take(2)
+                ->map(fn ($chunk) => mb_strtoupper(mb_substr($chunk, 0, 1)))
+                ->join('');
+
+            if ($avatarLabel === '') {
+                $avatarLabel = 'LS';
+            }
+        @endphp
+
+        <div class="lms-app-shell lms-page-enter">
+            <div class="lms-app-grid">
+                <x-layout.sidebar :app-name="$appName" :app-version="$appVersion" />
+
+                <div class="lms-main-area">
+                    <x-layout.topbar :app-name="$appName" :avatar-label="$avatarLabel" />
+
+                    <main class="lms-content-shell lms-main">
+                        @if (session('status'))
+                            <div
+                                class="lms-alert lms-alert-success"
+                                data-toast-message="{{ session('status') }}"
+                                data-toast-type="success"
+                            >
+                                {{ session('status') }}
+                            </div>
+                        @endif
+
+                        @if ($errors->any())
+                            <div class="lms-alert lms-alert-error" data-toast-message="{{ $errors->first() }}" data-toast-type="error">
+                                <ul>
+                                    @foreach ($errors->all() as $error)
+                                        <li>{{ $error }}</li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        @endif
+
+                        @yield('content')
+                    </main>
                 </div>
-
-                <nav class="lms-nav">
-                    <a class="lms-nav-link {{ request()->routeIs('analyses.index') ? 'is-active' : '' }}" href="{{ route('analyses.index') }}">{{ __('messages.nav_dashboard') }}</a>
-                    <a class="lms-nav-link {{ request()->routeIs('analyses.create') ? 'is-active' : '' }}" href="{{ route('analyses.create') }}">{{ __('messages.nav_new_analysis') }}</a>
-                    <a class="lms-nav-link {{ request()->routeIs('catalog.*') ? 'is-active' : '' }}" href="{{ route('catalog.index') }}">{{ __('messages.nav_catalog') }}</a>
-                    <a class="lms-nav-link {{ request()->routeIs('settings.*') ? 'is-active' : '' }}" href="{{ route('settings.edit') }}">{{ __('messages.nav_settings') }}</a>
-                </nav>
-
-            </header>
-
-            <main class="lms-main">
-                @if (session('status'))
-                    <div class="lms-alert lms-alert-success">{{ session('status') }}</div>
-                @endif
-
-                @if ($errors->any())
-                    <div class="lms-alert lms-alert-error">
-                        <ul>
-                            @foreach ($errors->all() as $error)
-                                <li>{{ $error }}</li>
-                            @endforeach
-                        </ul>
-                    </div>
-                @endif
-
-                @yield('content')
-            </main>
+            </div>
         </div>
     </body>
 </html>

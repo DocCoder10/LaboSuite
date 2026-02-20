@@ -46,6 +46,15 @@ if (!settingsRoot) {
     const headerLogoModeSelect = settingsRoot.querySelector('[data-header-logo-mode]');
     const headerRuleTarget = settingsRoot.querySelector('[data-header-layout-rule]');
     const logoControllers = [];
+    const uiPrefRoot = settingsRoot.querySelector('[data-ui-pref-root]');
+    const uiPrimaryInput = settingsRoot.querySelector('[data-ui-primary-color]');
+    const uiCompactToggle = settingsRoot.querySelector('[data-ui-compact-toggle]');
+    const uiThemeOptions = settingsRoot.querySelectorAll('[data-ui-theme-option]');
+    const uiStorage = {
+        primary: 'labo.ui.primary',
+        compact: 'labo.ui.compact',
+        theme: 'labo.ui.theme',
+    };
 
     const updateTypeDisplay = (row, typeValue) => {
         const target = row.querySelector('[data-field-type-display]');
@@ -124,6 +133,92 @@ if (!settingsRoot) {
         if (headerRuleTarget) {
             headerRuleTarget.textContent = labels.headerRuleCenter;
         }
+    };
+
+    const clampColorChannel = (value) => {
+        return Math.max(0, Math.min(255, value));
+    };
+
+    const shiftHexColor = (hexColor, amount) => {
+        const normalized = hexColor.replace('#', '');
+        if (!/^[0-9a-fA-F]{6}$/.test(normalized)) {
+            return hexColor;
+        }
+
+        const next = [0, 2, 4]
+            .map((start) => {
+                const channel = parseInt(normalized.slice(start, start + 2), 16);
+                return clampColorChannel(channel + amount).toString(16).padStart(2, '0');
+            })
+            .join('');
+
+        return `#${next}`;
+    };
+
+    const applyPrimaryColor = (hexColor) => {
+        if (!/^#[0-9a-fA-F]{6}$/.test(hexColor)) {
+            return;
+        }
+
+        const root = document.documentElement;
+        root.style.setProperty('--ui-primary', hexColor);
+        root.style.setProperty('--ui-primary-hover', shiftHexColor(hexColor, -16));
+        root.style.setProperty('--ui-primary-active', shiftHexColor(hexColor, -32));
+    };
+
+    const applyCompactMode = (isCompact) => {
+        document.body.classList.toggle('lms-compact', isCompact);
+    };
+
+    const applyThemeOption = (theme) => {
+        document.documentElement.setAttribute('data-ui-theme', theme);
+        uiThemeOptions.forEach((button) => {
+            const isActive = button.getAttribute('data-ui-theme-option') === theme;
+            button.classList.toggle('is-toggled', isActive);
+        });
+    };
+
+    const initializeUIPreferences = () => {
+        if (!uiPrefRoot) {
+            return;
+        }
+
+        const storedPrimary = window.localStorage.getItem(uiStorage.primary);
+        if (storedPrimary && /^#[0-9a-fA-F]{6}$/.test(storedPrimary)) {
+            applyPrimaryColor(storedPrimary);
+            if (uiPrimaryInput) {
+                uiPrimaryInput.value = storedPrimary;
+            }
+        }
+
+        const storedCompact = window.localStorage.getItem(uiStorage.compact) === '1';
+        applyCompactMode(storedCompact);
+        if (uiCompactToggle) {
+            uiCompactToggle.checked = storedCompact;
+        }
+
+        const storedTheme = window.localStorage.getItem(uiStorage.theme) || 'light';
+        applyThemeOption(storedTheme);
+
+        uiPrimaryInput?.addEventListener('input', () => {
+            const nextColor = uiPrimaryInput.value;
+            applyPrimaryColor(nextColor);
+            window.localStorage.setItem(uiStorage.primary, nextColor);
+        });
+
+        uiCompactToggle?.addEventListener('change', () => {
+            const isCompact = uiCompactToggle.checked;
+            applyCompactMode(isCompact);
+            window.localStorage.setItem(uiStorage.compact, isCompact ? '1' : '0');
+        });
+
+        uiThemeOptions.forEach((button) => {
+            button.addEventListener('click', () => {
+                const nextTheme = button.getAttribute('data-ui-theme-option') || 'light';
+                applyThemeOption(nextTheme);
+                window.localStorage.setItem(uiStorage.theme, nextTheme);
+            });
+        });
     };
 
     const attachLogoPreview = (side) => {
@@ -251,6 +346,7 @@ if (!settingsRoot) {
 
     syncHeaderLayoutControls();
     headerPositionSelect?.addEventListener('change', syncHeaderLayoutControls);
+    initializeUIPreferences();
     ['left', 'right'].forEach((side) => {
         const cleanup = attachLogoPreview(side);
         if (cleanup) {
@@ -309,13 +405,24 @@ if (!settingsRoot) {
 
         const label = row.querySelector('[data-field-label-display]')?.textContent?.trim() || '';
         const confirmationText = labels.confirmDeleteField.replace(':name', label || 'ce champ');
+        const confirmDialog = window.LaboModal?.confirm
+            ? window.LaboModal.confirm({
+                title: labels.delete,
+                message: confirmationText,
+                okText: labels.delete,
+                cancelText: labels.undoDelete,
+                tone: 'danger',
+            })
+            : Promise.resolve(window.confirm(confirmationText));
 
-        if (!window.confirm(confirmationText)) {
-            return;
-        }
+        confirmDialog.then((isConfirmed) => {
+            if (!isConfirmed) {
+                return;
+            }
 
-        deleteInput.value = '1';
-        updateStatusDisplay(row);
+            deleteInput.value = '1';
+            updateStatusDisplay(row);
+        });
     });
 
     editFieldSave?.addEventListener('click', () => {

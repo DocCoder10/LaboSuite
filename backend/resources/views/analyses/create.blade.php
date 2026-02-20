@@ -11,10 +11,14 @@
             ->values();
     @endphp
 
+    <section class="lms-page-head">
+        <h2>{{ __('messages.nav_new_analysis') }}</h2>
+    </section>
+
     <form method="POST" action="{{ route('analyses.selection.store') }}" class="lms-grid">
         @csrf
 
-        <section class="lms-card lms-stack">
+        <section class="lms-card lms-stack is-hoverable">
             <h3>{{ __('messages.step_patient') }}</h3>
 
             <div class="lms-grid-3">
@@ -34,16 +38,16 @@
                             @php
                                 $selectedSex = old('patient.sex', $draftPatient['sex'] ?? 'male');
                             @endphp
-                            <select name="patient[sex]" @required($isRequired)>
+                            <x-ui.select name="patient[sex]" :required="$isRequired">
                                 <option value="male" @selected($selectedSex === 'male')>{{ __('messages.male') }}</option>
                                 <option value="female" @selected($selectedSex === 'female')>{{ __('messages.female') }}</option>
                                 <option value="other" @selected($selectedSex === 'other')>{{ __('messages.other') }}</option>
-                            </select>
+                            </x-ui.select>
                         @elseif ($fieldKey === 'identifier' && $patientIdentifierRequired)
                             @php
                                 $identifierValue = old('patient.identifier', $draftPatient['identifier'] ?? '');
                             @endphp
-                            <input type="text" value="{{ $identifierValue }}" placeholder="{{ __('messages.identifier_auto_generated') }}" readonly>
+                            <x-ui.input type="text" value="{{ $identifierValue }}" placeholder="{{ __('messages.identifier_auto_generated') }}" readonly />
                             <input type="hidden" name="patient[identifier]" value="{{ $identifierValue }}">
                         @else
                             @php
@@ -56,14 +60,14 @@
                                     : old('patient.extra_fields.'.$fieldKey, $draftExtraFields[$fieldKey] ?? '');
                             @endphp
 
-                            <input
+                            <x-ui.input
                                 type="{{ $fieldType === 'number' ? 'number' : 'text' }}"
                                 name="{{ $fieldName }}"
                                 value="{{ $value }}"
                                 @if ($fieldKey === 'age') min="0" max="130" @endif
                                 @if ($fieldType === 'number') step="any" @endif
-                                @required($isRequired)
-                            >
+                                :required="$isRequired"
+                            />
                         @endif
                     </label>
                 @endforeach
@@ -71,11 +75,11 @@
 
             <label class="lms-field">
                 <span>{{ __('messages.analysis_date') }}</span>
-                <input type="date" name="analysis_date" value="{{ old('analysis_date', $analysisDate) }}" required>
+                <x-ui.input type="date" name="analysis_date" value="{{ old('analysis_date', $analysisDate) }}" required />
             </label>
         </section>
 
-        <section class="lms-card lms-stack">
+        <section class="lms-card lms-stack is-hoverable">
             <h3>{{ __('messages.step_select') }}</h3>
             <p class="lms-muted">{{ __('messages.available_categories') }}</p>
             <div class="lms-check-grid">
@@ -96,7 +100,7 @@
             </div>
 
             <div class="lms-inline-actions">
-                <button class="lms-btn" type="submit">{{ __('messages.continue_to_results') }}</button>
+                <x-ui.button type="submit" icon="plus">{{ __('messages.continue_to_results') }}</x-ui.button>
             </div>
         </section>
     </form>

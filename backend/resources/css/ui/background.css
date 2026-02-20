@@ -1,0 +1,42 @@
+* {
+    box-sizing: border-box;
+}
+
+body.lms-body {
+    margin: 0;
+    min-height: 100vh;
+    color: var(--ui-text);
+    font-family: var(--font-sans);
+    background: var(--ui-bg);
+    position: relative;
+    isolation: isolate;
+}
+
+body.lms-body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    pointer-events: none;
+    background-image: radial-gradient(circle at 1px 1px, rgba(148, 163, 184, 0.22) 1px, transparent 1.4px);
+    background-size: 16px 16px;
+    opacity: 0.45;
+}
+
+body.lms-body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -3;
+    pointer-events: none;
+    background:
+        radial-gradient(700px 420px at 0% 100%, rgba(191, 219, 254, 0.58), transparent 70%),
+        radial-gradient(660px 380px at 100% 0%, rgba(226, 232, 240, 0.55), transparent 72%),
+        linear-gradient(180deg, var(--ui-bg) 0%, var(--ui-bg-alt) 100%);
+}
+
+body.lms-print-body,
+body.lms-print-body::before,
+body.lms-print-body::after {
+    background: #ffffff;
+}

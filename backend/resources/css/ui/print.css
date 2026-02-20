@@ -1,0 +1,28 @@
+.lms-page-enter {
+    animation: lms-page-enter 320ms var(--ui-transition-ease);
+}
+
+@keyframes lms-page-enter {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media print {
+    .lms-app-shell,
+    .lms-app-grid,
+    .lms-content-shell {
+        all: unset;
+    }
+
+    body.lms-print-body,
+    body.lms-print-body .lms-report {
+        font-family: 'IBM Plex Sans', 'Segoe UI', sans-serif;
+    }
+}

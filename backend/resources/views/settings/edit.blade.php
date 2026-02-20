@@ -3,6 +3,23 @@
 @section('content')
     @php
         $openAddFieldModal = old('section') === 'patient' && filled(old('patient_new.label'));
+        $tabItems = [
+            [
+                'href' => route('settings.edit', ['section' => 'lab']),
+                'label' => __('messages.settings_nav_lab'),
+                'active' => $activeSection === 'lab',
+            ],
+            [
+                'href' => route('settings.edit', ['section' => 'pdf']),
+                'label' => __('messages.settings_nav_pdf'),
+                'active' => $activeSection === 'pdf',
+            ],
+            [
+                'href' => route('settings.edit', ['section' => 'patient']),
+                'label' => __('messages.settings_nav_patient'),
+                'active' => $activeSection === 'patient',
+            ],
+        ];
     @endphp
 
     <section class="lms-page-head">
@@ -22,17 +39,7 @@
         data-header-rule-right="{{ __('messages.header_rule_right') }}"
         data-header-rule-center="{{ __('messages.header_rule_center') }}"
     >
-        <nav class="lms-card lms-settings-nav">
-            <a class="lms-settings-nav-link {{ $activeSection === 'lab' ? 'is-active' : '' }}" href="{{ route('settings.edit', ['section' => 'lab']) }}">
-                {{ __('messages.settings_nav_lab') }}
-            </a>
-            <a class="lms-settings-nav-link {{ $activeSection === 'pdf' ? 'is-active' : '' }}" href="{{ route('settings.edit', ['section' => 'pdf']) }}">
-                {{ __('messages.settings_nav_pdf') }}
-            </a>
-            <a class="lms-settings-nav-link {{ $activeSection === 'patient' ? 'is-active' : '' }}" href="{{ route('settings.edit', ['section' => 'patient']) }}">
-                {{ __('messages.settings_nav_patient') }}
-            </a>
-        </nav>
+        <x-ui.tabs :items="$tabItems" class="lms-card" />
 
         @if ($activeSection === 'lab')
             <form method="POST" action="{{ route('settings.update') }}" class="lms-card lms-stack" enctype="multipart/form-data">
@@ -209,6 +216,26 @@
 
                         <p class="lms-muted">{{ __('messages.logo_upload_hint') }}</p>
                     </article>
+
+                    <article class="lms-settings-panel lms-stack" data-ui-pref-root>
+                        <h4>Preferences interface</h4>
+                        <p class="lms-muted">Ces reglages sont locaux a ce poste et n'alterent pas les donnees metier.</p>
+
+                        <div class="lms-inline-actions lms-wrap-actions" data-ui-theme-controls>
+                            <button type="button" class="lms-btn lms-btn-soft" data-ui-theme-option="light">Theme clair</button>
+                            <button type="button" class="lms-btn lms-btn-soft" data-ui-theme-option="soft">Bleu doux</button>
+                        </div>
+
+                        <label class="lms-field">
+                            <span>Couleur principale</span>
+                            <input type="color" value="#3b82f6" data-ui-primary-color>
+                        </label>
+
+                        <label class="lms-checkbox">
+                            <input type="checkbox" data-ui-compact-toggle>
+                            <span>Mode compact (espacement reduit)</span>
+                        </label>
+                    </article>
                 </div>
 
                 <button class="lms-btn" type="submit">{{ __('messages.save_settings') }}</button>
@@ -350,74 +377,60 @@
 
                 <button class="lms-btn" type="submit">{{ __('messages.save_settings') }}</button>
 
-                <dialog id="modal-add-patient-field" class="lms-modal" @if ($openAddFieldModal) data-open-on-load="1" @endif>
-                    <article class="lms-modal-card lms-stack">
-                        <header class="lms-modal-head">
-                            <h4>{{ __('messages.patient_add_field') }}</h4>
-                            <button type="button" class="lms-modal-close" data-modal-close>&times;</button>
-                        </header>
-
-                        <div class="lms-grid-2">
-                            <label class="lms-field">
-                                <span>{{ __('messages.name') }}</span>
-                                <input type="text" name="patient_new[label]" value="{{ old('patient_new.label') }}">
-                            </label>
-                            <label class="lms-field">
-                                <span>{{ __('messages.value_type') }}</span>
-                                <select name="patient_new[type]">
-                                    <option value="text" @selected(old('patient_new.type', 'text') === 'text')>{{ __('messages.value_type_text') }}</option>
-                                    <option value="number" @selected(old('patient_new.type') === 'number')>{{ __('messages.value_type_number') }}</option>
-                                </select>
-                            </label>
-                        </div>
-
-                        <label class="lms-checkbox">
-                            <input type="hidden" name="patient_new[active]" value="0">
-                            <input type="checkbox" name="patient_new[active]" value="1" @checked(old('patient_new.active', true))>
-                            <span>{{ __('messages.active') }}</span>
+                <x-ui.modal id="modal-add-patient-field" :title="__('messages.patient_add_field')" :open-on-load="$openAddFieldModal">
+                    <div class="lms-grid-2">
+                        <label class="lms-field">
+                            <span>{{ __('messages.name') }}</span>
+                            <input type="text" name="patient_new[label]" value="{{ old('patient_new.label') }}">
                         </label>
-
-                        <div class="lms-inline-actions lms-wrap-actions">
-                            <button type="button" class="lms-btn lms-btn-soft" data-modal-close>{{ __('messages.close') }}</button>
-                            <button class="lms-btn" type="submit">{{ __('messages.save_settings') }}</button>
-                        </div>
-                    </article>
-                </dialog>
-
-                <dialog id="modal-edit-patient-field" class="lms-modal">
-                    <article class="lms-modal-card lms-stack">
-                        <header class="lms-modal-head">
-                            <h4>{{ __('messages.patient_edit_field') }}</h4>
-                            <button type="button" class="lms-modal-close" data-modal-close>&times;</button>
-                        </header>
-
-                        <input type="hidden" data-edit-field-index>
-
-                        <div class="lms-grid-2">
-                            <label class="lms-field">
-                                <span>{{ __('messages.name') }}</span>
-                                <input type="text" data-edit-field-label>
-                            </label>
-                            <label class="lms-field">
-                                <span>{{ __('messages.value_type') }}</span>
-                                <select data-edit-field-type>
-                                    <option value="text">{{ __('messages.value_type_text') }}</option>
-                                    <option value="number">{{ __('messages.value_type_number') }}</option>
-                                </select>
-                            </label>
-                        </div>
-
-                        <label class="lms-checkbox">
-                            <input type="checkbox" value="1" data-edit-field-active>
-                            <span>{{ __('messages.active') }}</span>
+                        <label class="lms-field">
+                            <span>{{ __('messages.value_type') }}</span>
+                            <select name="patient_new[type]">
+                                <option value="text" @selected(old('patient_new.type', 'text') === 'text')>{{ __('messages.value_type_text') }}</option>
+                                <option value="number" @selected(old('patient_new.type') === 'number')>{{ __('messages.value_type_number') }}</option>
+                            </select>
                         </label>
+                    </div>
 
-                        <div class="lms-inline-actions lms-wrap-actions">
-                            <button type="button" class="lms-btn lms-btn-soft" data-modal-close>{{ __('messages.close') }}</button>
-                            <button type="button" class="lms-btn" data-edit-field-save>{{ __('messages.apply_changes') }}</button>
-                        </div>
-                    </article>
-                </dialog>
+                    <label class="lms-checkbox">
+                        <input type="hidden" name="patient_new[active]" value="0">
+                        <input type="checkbox" name="patient_new[active]" value="1" @checked(old('patient_new.active', true))>
+                        <span>{{ __('messages.active') }}</span>
+                    </label>
+
+                    <div class="lms-inline-actions lms-wrap-actions">
+                        <button type="button" class="lms-btn lms-btn-soft" data-modal-close>{{ __('messages.close') }}</button>
+                        <button class="lms-btn" type="submit">{{ __('messages.save_settings') }}</button>
+                    </div>
+                </x-ui.modal>
+
+                <x-ui.modal id="modal-edit-patient-field" :title="__('messages.patient_edit_field')">
+                    <input type="hidden" data-edit-field-index>
+
+                    <div class="lms-grid-2">
+                        <label class="lms-field">
+                            <span>{{ __('messages.name') }}</span>
+                            <input type="text" data-edit-field-label>
+                        </label>
+                        <label class="lms-field">
+                            <span>{{ __('messages.value_type') }}</span>
+                            <select data-edit-field-type>
+                                <option value="text">{{ __('messages.value_type_text') }}</option>
+                                <option value="number">{{ __('messages.value_type_number') }}</option>
+                            </select>
+                        </label>
+                    </div>
+
+                    <label class="lms-checkbox">
+                        <input type="checkbox" value="1" data-edit-field-active>
+                        <span>{{ __('messages.active') }}</span>
+                    </label>
+
+                    <div class="lms-inline-actions lms-wrap-actions">
+                        <button type="button" class="lms-btn lms-btn-soft" data-modal-close>{{ __('messages.close') }}</button>
+                        <button type="button" class="lms-btn" data-edit-field-save>{{ __('messages.apply_changes') }}</button>
+                    </div>
+                </x-ui.modal>
             </form>
         @endif
     </section>

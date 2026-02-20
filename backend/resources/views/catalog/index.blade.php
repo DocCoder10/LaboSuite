@@ -3,12 +3,11 @@
 @section('content')
     <section class="lms-page-head">
         <h2>{{ __('messages.catalog_title') }}</h2>
+        <div class="lms-inline-actions lms-wrap-actions">
+            <x-ui.button type="button" icon="plus" data-modal-open="modal-add-discipline">{{ __('messages.add_discipline') }}</x-ui.button>
+            <x-ui.button type="button" variant="secondary" icon="sparkles" data-add-child disabled>{{ __('messages.add_child') }}</x-ui.button>
+        </div>
     </section>
-
-    <div class="lms-inline-actions lms-wrap-actions">
-        <button type="button" class="lms-btn" data-modal-open="modal-add-discipline">{{ __('messages.add_discipline') }}</button>
-        <button type="button" class="lms-btn lms-btn-soft" data-add-child disabled>{{ __('messages.add_child') }}</button>
-    </div>
 
     <div
         class="lms-catalog-layout"
