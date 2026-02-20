@@ -11,7 +11,49 @@
         'other' => __('messages.other'),
         default => '-',
     };
-    $logoSrc = trim((string) ($identity['logo_url'] ?? ($identity['logo_path'] ?? '')));
+    $headerInfoPosition = (string) ($identity['header_info_position'] ?? 'center');
+    if (! in_array($headerInfoPosition, ['left', 'center', 'right'], true)) {
+        $headerInfoPosition = 'center';
+    }
+    $headerLogoMode = (string) ($identity['header_logo_mode'] ?? 'single_left');
+    if ($headerInfoPosition === 'left') {
+        $headerLogoMode = 'single_right';
+    } elseif ($headerInfoPosition === 'right') {
+        $headerLogoMode = 'single_left';
+    } elseif (! in_array($headerLogoMode, ['single_left', 'single_right', 'both_distinct', 'both_same'], true)) {
+        $headerLogoMode = 'single_left';
+    }
+    $leftLogoPath = trim((string) ($identity['logo_left_path'] ?? ($identity['logo_path'] ?? '')));
+    $rightLogoPath = trim((string) ($identity['logo_right_path'] ?? ''));
+    $legacyLogoUrl = trim((string) ($identity['logo_url'] ?? ''));
+    $leftLogoSrc = $leftLogoPath !== '' ? \Illuminate\Support\Facades\Storage::disk('public')->url($leftLogoPath) : $legacyLogoUrl;
+    $rightLogoSrc = $rightLogoPath !== '' ? \Illuminate\Support\Facades\Storage::disk('public')->url($rightLogoPath) : '';
+    $displayLeftLogo = '';
+    $displayRightLogo = '';
+    $logoSizePx = max(96, min(240, (int) ($identity['header_logo_size_px'] ?? 170)));
+    $allowedOffsets = [-16, -8, 0, 8, 16];
+    $logoOffsetLeft = (int) ($identity['header_logo_offset_x_left'] ?? 0);
+    $logoOffsetRight = (int) ($identity['header_logo_offset_x_right'] ?? 0);
+    if (! in_array($logoOffsetLeft, $allowedOffsets, true)) {
+        $logoOffsetLeft = 0;
+    }
+    if (! in_array($logoOffsetRight, $allowedOffsets, true)) {
+        $logoOffsetRight = 0;
+    }
+
+    if ($headerLogoMode === 'single_left') {
+        $displayLeftLogo = $leftLogoSrc !== '' ? $leftLogoSrc : $rightLogoSrc;
+    } elseif ($headerLogoMode === 'single_right') {
+        $displayRightLogo = $rightLogoSrc !== '' ? $rightLogoSrc : $leftLogoSrc;
+    } elseif ($headerLogoMode === 'both_distinct') {
+        $displayLeftLogo = $leftLogoSrc;
+        $displayRightLogo = $rightLogoSrc;
+    } else {
+        $sharedLogo = $leftLogoSrc !== '' ? $leftLogoSrc : $rightLogoSrc;
+        $displayLeftLogo = $sharedLogo;
+        $displayRightLogo = $sharedLogo;
+    }
+
     $normalizeLabel = static fn (?string $value): string => mb_strtolower(trim((string) $value));
     $indentLevel = static fn (int $level): int => max(0, $level);
     $indentStyle = static fn (int $level) => 'padding-left: '.($indentBaseMm + ($indentLevel($level) * $indentStepMm)).'mm;';
@@ -19,28 +61,108 @@
 
 <article class="lms-card lms-report">
     <header class="lms-report-head">
-        <div class="lms-report-lab">
-            @if ($logoSrc !== '')
-                <img src="{{ $logoSrc }}" alt="Laboratoire" class="lms-report-logo">
-            @endif
-
-            <div class="lms-report-lab-text">
-                <h3>{{ $identity['name'] ?? __('messages.app_name') }}</h3>
-                @if (! empty($identity['header_note']))
-                    <p>{{ $identity['header_note'] }}</p>
-                @endif
-                @if (! empty($identity['address']))
-                    <p>{{ $identity['address'] }}</p>
-                @endif
-                <p>
-                    {{ $identity['phone'] ?? '' }}
-                    @if (! empty($identity['phone']) && ! empty($identity['email']))
-                        |
+        @if ($headerInfoPosition === 'center')
+            <div class="lms-report-header-grid is-info-center">
+                <div class="lms-report-logo-slot lms-report-logo-slot-left {{ $displayLeftLogo === '' ? 'is-empty' : '' }}">
+                    @if ($displayLeftLogo !== '')
+                        <img
+                            src="{{ $displayLeftLogo }}"
+                            alt="Logo gauche laboratoire"
+                            class="lms-report-logo"
+                            style="--lms-logo-max-width: {{ $logoSizePx }}px; --lms-logo-offset-x: {{ $logoOffsetLeft }}px;"
+                        >
                     @endif
-                    {{ $identity['email'] ?? '' }}
-                </p>
+                </div>
+
+                <div class="lms-report-lab-text lms-report-lab-text-center">
+                    <h3>{{ $identity['name'] ?? __('messages.app_name') }}</h3>
+                    @if (! empty($identity['header_note']))
+                        <p>{{ $identity['header_note'] }}</p>
+                    @endif
+                    @if (! empty($identity['address']))
+                        <p>{{ $identity['address'] }}</p>
+                    @endif
+                    <p>
+                        {{ $identity['phone'] ?? '' }}
+                        @if (! empty($identity['phone']) && ! empty($identity['email']))
+                            |
+                        @endif
+                        {{ $identity['email'] ?? '' }}
+                    </p>
+                </div>
+
+                <div class="lms-report-logo-slot lms-report-logo-slot-right {{ $displayRightLogo === '' ? 'is-empty' : '' }}">
+                    @if ($displayRightLogo !== '')
+                        <img
+                            src="{{ $displayRightLogo }}"
+                            alt="Logo droit laboratoire"
+                            class="lms-report-logo"
+                            style="--lms-logo-max-width: {{ $logoSizePx }}px; --lms-logo-offset-x: {{ $logoOffsetRight }}px;"
+                        >
+                    @endif
+                </div>
             </div>
-        </div>
+        @elseif ($headerInfoPosition === 'left')
+            <div class="lms-report-header-grid is-info-left">
+                <div class="lms-report-lab-text lms-report-lab-text-left">
+                    <h3>{{ $identity['name'] ?? __('messages.app_name') }}</h3>
+                    @if (! empty($identity['header_note']))
+                        <p>{{ $identity['header_note'] }}</p>
+                    @endif
+                    @if (! empty($identity['address']))
+                        <p>{{ $identity['address'] }}</p>
+                    @endif
+                    <p>
+                        {{ $identity['phone'] ?? '' }}
+                        @if (! empty($identity['phone']) && ! empty($identity['email']))
+                            |
+                        @endif
+                        {{ $identity['email'] ?? '' }}
+                    </p>
+                </div>
+
+                <div class="lms-report-logo-slot lms-report-logo-slot-right {{ $displayRightLogo === '' ? 'is-empty' : '' }}">
+                    @if ($displayRightLogo !== '')
+                        <img
+                            src="{{ $displayRightLogo }}"
+                            alt="Logo droit laboratoire"
+                            class="lms-report-logo"
+                            style="--lms-logo-max-width: {{ $logoSizePx }}px; --lms-logo-offset-x: {{ $logoOffsetRight }}px;"
+                        >
+                    @endif
+                </div>
+            </div>
+        @else
+            <div class="lms-report-header-grid is-info-right">
+                <div class="lms-report-logo-slot lms-report-logo-slot-left {{ $displayLeftLogo === '' ? 'is-empty' : '' }}">
+                    @if ($displayLeftLogo !== '')
+                        <img
+                            src="{{ $displayLeftLogo }}"
+                            alt="Logo gauche laboratoire"
+                            class="lms-report-logo"
+                            style="--lms-logo-max-width: {{ $logoSizePx }}px; --lms-logo-offset-x: {{ $logoOffsetLeft }}px;"
+                        >
+                    @endif
+                </div>
+
+                <div class="lms-report-lab-text lms-report-lab-text-right">
+                    <h3>{{ $identity['name'] ?? __('messages.app_name') }}</h3>
+                    @if (! empty($identity['header_note']))
+                        <p>{{ $identity['header_note'] }}</p>
+                    @endif
+                    @if (! empty($identity['address']))
+                        <p>{{ $identity['address'] }}</p>
+                    @endif
+                    <p>
+                        {{ $identity['phone'] ?? '' }}
+                        @if (! empty($identity['phone']) && ! empty($identity['email']))
+                            |
+                        @endif
+                        {{ $identity['email'] ?? '' }}
+                    </p>
+                </div>
+            </div>
+        @endif
     </header>
 
     <section class="lms-report-patient-card">

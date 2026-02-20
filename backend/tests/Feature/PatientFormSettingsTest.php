@@ -9,6 +9,8 @@ use App\Models\LabSetting;
 use App\Models\Patient;
 use App\Support\PatientFieldManager;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class PatientFormSettingsTest extends TestCase
@@ -221,6 +223,100 @@ class PatientFormSettingsTest extends TestCase
             && strpos($html, 'Sexe') < strpos($html, 'Telephone')
             && strpos($html, 'Telephone') < strpos($html, 'ID')
         );
+    }
+
+    public function test_lab_settings_can_store_header_layout_and_two_logos(): void
+    {
+        Storage::fake('public');
+
+        $response = $this->post(route('settings.update'), [
+            '_method' => 'PUT',
+            'section' => 'lab',
+            'name' => 'Laboratoire Central',
+            'address' => 'Rue 10',
+            'phone' => '70001111',
+            'email' => 'lab@test.local',
+            'header_note' => 'Note header',
+            'footer_note' => 'Note footer',
+            'header_info_position' => 'center',
+            'header_logo_mode' => 'both_distinct',
+            'header_logo_size_px' => 146,
+            'header_logo_offset_x_left' => -8,
+            'header_logo_offset_x_right' => 8,
+            'logo_left' => UploadedFile::fake()->image('left.png', 320, 120),
+            'logo_right' => UploadedFile::fake()->image('right.png', 320, 120),
+        ]);
+
+        $response->assertSessionHasNoErrors();
+
+        $identity = LabSetting::getValue('lab_identity', []);
+
+        $this->assertSame('center', $identity['header_info_position'] ?? null);
+        $this->assertSame('both_distinct', $identity['header_logo_mode'] ?? null);
+        $this->assertSame(146, $identity['header_logo_size_px'] ?? null);
+        $this->assertSame(-8, $identity['header_logo_offset_x_left'] ?? null);
+        $this->assertSame(8, $identity['header_logo_offset_x_right'] ?? null);
+        $this->assertNotEmpty($identity['logo_left_path'] ?? null);
+        $this->assertNotEmpty($identity['logo_right_path'] ?? null);
+        Storage::disk('public')->assertExists((string) ($identity['logo_left_path'] ?? ''));
+        Storage::disk('public')->assertExists((string) ($identity['logo_right_path'] ?? ''));
+    }
+
+    public function test_lab_settings_force_single_logo_mode_when_info_block_is_not_center(): void
+    {
+        $response = $this->put(route('settings.update'), [
+            'section' => 'lab',
+            'name' => 'Laboratoire Central',
+            'address' => 'Rue 10',
+            'phone' => '70001111',
+            'email' => 'lab@test.local',
+            'header_note' => 'Note header',
+            'footer_note' => 'Note footer',
+            'header_info_position' => 'right',
+            'header_logo_mode' => 'both_distinct',
+        ]);
+
+        $response->assertSessionHasNoErrors();
+
+        $identity = LabSetting::getValue('lab_identity', []);
+
+        $this->assertSame('right', $identity['header_info_position'] ?? null);
+        $this->assertSame('single_left', $identity['header_logo_mode'] ?? null);
+    }
+
+    public function test_lab_settings_are_rendered_from_persisted_storage_on_settings_page(): void
+    {
+        Storage::fake('public');
+
+        $this->post(route('settings.update'), [
+            '_method' => 'PUT',
+            'section' => 'lab',
+            'name' => 'Lab Persist',
+            'address' => 'Rue Persist',
+            'phone' => '70002222',
+            'email' => 'persist@test.local',
+            'header_note' => 'Persist header',
+            'footer_note' => 'Persist footer',
+            'header_info_position' => 'center',
+            'header_logo_mode' => 'single_left',
+            'header_logo_size_px' => 180,
+            'header_logo_offset_x_left' => 16,
+            'header_logo_offset_x_right' => 0,
+            'logo_left' => UploadedFile::fake()->image('persist-left.png', 320, 120),
+        ])->assertSessionHasNoErrors();
+
+        $identity = LabSetting::getValue('lab_identity', []);
+        $leftPath = (string) ($identity['logo_left_path'] ?? '');
+
+        $this->assertNotSame('', $leftPath);
+        Storage::disk('public')->assertExists($leftPath);
+
+        $response = $this->get(route('settings.edit', ['section' => 'lab']));
+        $response->assertOk();
+        $response->assertSee('Lab Persist');
+        $response->assertSee(Storage::disk('public')->url($leftPath), false);
+        $response->assertSee('value="180"', false);
+        $response->assertSee('value="16"', false);
     }
 
     private function createCategory(): Category

@@ -10,6 +10,9 @@ if (!settingsRoot) {
         delete: settingsRoot.dataset.labelDelete || 'Supprimer',
         undoDelete: settingsRoot.dataset.labelUndoDelete || 'Annuler',
         confirmDeleteField: settingsRoot.dataset.labelConfirmDeleteField || 'Supprimer ce champ ?',
+        headerRuleLeft: settingsRoot.dataset.headerRuleLeft || 'Bloc infos a gauche: logo unique a droite.',
+        headerRuleRight: settingsRoot.dataset.headerRuleRight || 'Bloc infos a droite: logo unique a gauche.',
+        headerRuleCenter: settingsRoot.dataset.headerRuleCenter || 'Bloc infos centre: 1 ou 2 logos possibles.',
     };
 
     const openDialog = (dialog) => {
@@ -39,6 +42,10 @@ if (!settingsRoot) {
     });
 
     const fieldRowByIndex = (rowIndex) => settingsRoot.querySelector(`[data-field-row][data-field-index="${rowIndex}"]`);
+    const headerPositionSelect = settingsRoot.querySelector('[data-header-info-position]');
+    const headerLogoModeSelect = settingsRoot.querySelector('[data-header-logo-mode]');
+    const headerRuleTarget = settingsRoot.querySelector('[data-header-layout-rule]');
+    const logoControllers = [];
 
     const updateTypeDisplay = (row, typeValue) => {
         const target = row.querySelector('[data-field-type-display]');
@@ -83,6 +90,134 @@ if (!settingsRoot) {
         }
     };
 
+    const syncHeaderLayoutControls = () => {
+        if (!headerPositionSelect || !headerLogoModeSelect) {
+            return;
+        }
+
+        const position = headerPositionSelect.value;
+        const options = [...headerLogoModeSelect.options];
+
+        options.forEach((option) => {
+            option.disabled = false;
+        });
+
+        if (position === 'left') {
+            headerLogoModeSelect.value = 'single_right';
+            headerLogoModeSelect.disabled = true;
+            if (headerRuleTarget) {
+                headerRuleTarget.textContent = labels.headerRuleLeft;
+            }
+            return;
+        }
+
+        if (position === 'right') {
+            headerLogoModeSelect.value = 'single_left';
+            headerLogoModeSelect.disabled = true;
+            if (headerRuleTarget) {
+                headerRuleTarget.textContent = labels.headerRuleRight;
+            }
+            return;
+        }
+
+        headerLogoModeSelect.disabled = false;
+        if (headerRuleTarget) {
+            headerRuleTarget.textContent = labels.headerRuleCenter;
+        }
+    };
+
+    const attachLogoPreview = (side) => {
+        const fileInput = settingsRoot.querySelector(`[data-logo-input="${side}"]`);
+        const preview = settingsRoot.querySelector(`[data-logo-preview="${side}"]`);
+        const removeInput = settingsRoot.querySelector(`[data-logo-remove-input="${side}"]`);
+        const deleteButton = settingsRoot.querySelector(`[data-logo-delete-btn="${side}"]`);
+        const uploadTrigger = settingsRoot.querySelector(`[data-logo-upload-trigger="${side}"]`);
+
+        if (!fileInput || !preview) {
+            return null;
+        }
+
+        const persistedSrc = preview.getAttribute('src') || '';
+        const hasPersistedLogo = persistedSrc !== '';
+        let currentObjectUrl = null;
+
+        const revokeObjectUrl = () => {
+            if (!currentObjectUrl) {
+                return;
+            }
+
+            URL.revokeObjectURL(currentObjectUrl);
+            currentObjectUrl = null;
+        };
+
+        const applyPreview = () => {
+            const selectedFile = fileInput.files?.[0];
+
+            if (selectedFile && selectedFile.type.startsWith('image/')) {
+                revokeObjectUrl();
+                currentObjectUrl = URL.createObjectURL(selectedFile);
+                preview.src = currentObjectUrl;
+                preview.classList.remove('is-hidden');
+                if (removeInput) {
+                    removeInput.value = '0';
+                }
+                if (deleteButton) {
+                    deleteButton.disabled = false;
+                }
+                return;
+            }
+
+            revokeObjectUrl();
+
+            if ((removeInput?.value || '0') === '1') {
+                preview.src = '';
+                preview.classList.add('is-hidden');
+                if (deleteButton) {
+                    deleteButton.disabled = true;
+                }
+                return;
+            }
+
+            if (persistedSrc !== '') {
+                preview.src = persistedSrc;
+                preview.classList.remove('is-hidden');
+                if (deleteButton) {
+                    deleteButton.disabled = false;
+                }
+                return;
+            }
+
+            preview.src = '';
+            preview.classList.add('is-hidden');
+            if (deleteButton) {
+                deleteButton.disabled = true;
+            }
+        };
+
+        uploadTrigger?.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        deleteButton?.addEventListener('click', () => {
+            fileInput.value = '';
+            if (removeInput) {
+                removeInput.value = hasPersistedLogo ? '1' : '0';
+            }
+            applyPreview();
+        });
+
+        fileInput.addEventListener('change', () => {
+            if (removeInput && fileInput.files?.length) {
+                removeInput.value = '0';
+            }
+            applyPreview();
+        });
+
+        applyPreview();
+
+        return revokeObjectUrl;
+    };
+
     settingsRoot.querySelectorAll('[data-modal-open]').forEach((trigger) => {
         trigger.addEventListener('click', () => {
             const dialog = document.getElementById(trigger.dataset.modalOpen);
@@ -112,6 +247,15 @@ if (!settingsRoot) {
 
     settingsRoot.querySelectorAll('dialog[data-open-on-load="1"]').forEach((dialog) => {
         openDialog(dialog);
+    });
+
+    syncHeaderLayoutControls();
+    headerPositionSelect?.addEventListener('change', syncHeaderLayoutControls);
+    ['left', 'right'].forEach((side) => {
+        const cleanup = attachLogoPreview(side);
+        if (cleanup) {
+            logoControllers.push(cleanup);
+        }
     });
 
     settingsRoot.querySelectorAll('[data-field-row]').forEach((row) => {
@@ -220,5 +364,9 @@ if (!settingsRoot) {
 
         updateStatusDisplay(row);
         closeDialog(editDialog);
+    });
+
+    window.addEventListener('beforeunload', () => {
+        logoControllers.forEach((cleanup) => cleanup());
     });
 }

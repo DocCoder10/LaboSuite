@@ -17,12 +17,24 @@ class LabCatalogSeeder extends Seeder
      */
     public function run(): void
     {
-        DB::transaction(function (): void {
-            // Reset default catalog content before inserting the new baseline.
-            LabParameter::query()->delete();
-            Subcategory::query()->delete();
-            Category::query()->delete();
-            Discipline::query()->delete();
+        $forceReset = filter_var(env('LAB_FORCE_CATALOG_RESEED', false), FILTER_VALIDATE_BOOL);
+        $hasExistingCatalog = Discipline::query()->exists()
+            || Category::query()->exists()
+            || Subcategory::query()->exists()
+            || LabParameter::query()->exists();
+
+        if ($hasExistingCatalog && ! $forceReset) {
+            return;
+        }
+
+        DB::transaction(function () use ($forceReset): void {
+            if ($forceReset) {
+                // Explicit reset mode only for controlled maintenance operations.
+                LabParameter::query()->delete();
+                Subcategory::query()->delete();
+                Category::query()->delete();
+                Discipline::query()->delete();
+            }
 
             $disciplineByName = [];
             $disciplineSortOrder = 10;

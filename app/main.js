@@ -116,9 +116,12 @@ function waitForHealth(url, timeoutMs = 25000) {
 }
 
 function ensureRuntimePaths(runtimePaths) {
+    const databaseExists = fs.existsSync(runtimePaths.databasePath);
+    const databaseSize = databaseExists ? fs.statSync(runtimePaths.databasePath).size : 0;
+
     fs.mkdirSync(path.dirname(runtimePaths.databasePath), { recursive: true });
 
-    if (!fs.existsSync(runtimePaths.databasePath)) {
+    if (!databaseExists) {
         fs.writeFileSync(runtimePaths.databasePath, '', { encoding: 'utf8' });
     }
 
@@ -133,6 +136,10 @@ function ensureRuntimePaths(runtimePaths) {
     requiredStorageDirs.forEach((dirPath) => {
         fs.mkdirSync(dirPath, { recursive: true });
     });
+
+    return {
+        shouldBootstrapSeed: !databaseExists || databaseSize === 0,
+    };
 }
 
 function buildBackendEnv(runtimePaths) {
@@ -187,7 +194,7 @@ async function startBackend() {
     const phpBin = resolvePhpBinary();
     const runtimePaths = getRuntimeDataPaths(backendPath);
 
-    ensureRuntimePaths(runtimePaths);
+    const runtimeState = ensureRuntimePaths(runtimePaths);
     const backendEnv = buildBackendEnv(runtimePaths);
 
     if (app.isPackaged && !fs.existsSync(phpBin)) {
@@ -200,7 +207,12 @@ async function startBackend() {
 
     // Prevent stale compiled views/routes/config from previous app sessions.
     await runArtisan(phpBin, backendPath, ['optimize:clear'], backendEnv);
-    await runArtisan(phpBin, backendPath, ['migrate', '--force', '--seed'], backendEnv);
+    await runArtisan(phpBin, backendPath, ['migrate', '--force'], backendEnv);
+
+    // Seed only for a fresh runtime database to avoid overwriting user data.
+    if (runtimeState.shouldBootstrapSeed) {
+        await runArtisan(phpBin, backendPath, ['db:seed', '--force'], backendEnv);
+    }
 
     backendProcess = spawn(
         phpBin,

@@ -245,6 +245,122 @@ body.lms-body {
     margin: 0;
 }
 
+.lms-settings-cluster {
+    display: grid;
+    gap: 0.9rem;
+}
+
+.lms-settings-panel {
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    border-radius: 14px;
+    padding: 0.85rem;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.98) 100%);
+}
+
+.lms-settings-panel h4,
+.lms-settings-panel h5 {
+    margin: 0;
+}
+
+.lms-logo-upload {
+    display: grid;
+    gap: 0.55rem;
+    border: 1px dashed rgba(148, 163, 184, 0.55);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.82);
+    padding: 0.75rem;
+}
+
+.lms-logo-preview {
+    width: 100%;
+    max-width: 180px;
+    max-height: 92px;
+    object-fit: contain;
+    border: 1px solid var(--lms-border);
+    border-radius: 10px;
+    background: #ffffff;
+    padding: 0.3rem;
+}
+
+.lms-logo-preview.is-hidden {
+    display: none;
+}
+
+.lms-logo-actions {
+    display: flex;
+    gap: 0.45rem;
+    align-items: center;
+}
+
+.lms-logo-actions .lms-btn-upload {
+    flex: 0 0 70%;
+    max-width: 70%;
+}
+
+.lms-logo-actions .lms-logo-delete-btn {
+    flex: 0 0 30%;
+    max-width: 30%;
+}
+
+.lms-btn-upload {
+    background: #2563eb;
+    color: #ffffff;
+    border-color: transparent;
+}
+
+.lms-btn-upload:hover {
+    background: #1d4ed8;
+}
+
+.lms-visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.lms-offset-preset-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.lms-offset-preset {
+    position: relative;
+}
+
+.lms-offset-preset input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.lms-offset-preset span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 56px;
+    border: 1px solid var(--lms-border);
+    border-radius: 999px;
+    background: #ffffff;
+    color: #334155;
+    padding: 0.25rem 0.45rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.lms-offset-preset input:checked + span {
+    border-color: transparent;
+    background: var(--lms-accent);
+    color: #ffffff;
+}
+
 .lms-table-patient-fields {
     font-size: 0.86rem;
 }
@@ -756,25 +872,73 @@ li.is-dragging > details > .lms-tree-node {
     border-bottom: 2px solid rgba(148, 163, 184, 0.45);
 }
 
-.lms-report-lab {
-    display: flex;
+.lms-report-header-grid {
+    display: grid;
+    align-items: stretch;
     gap: 0.9rem;
-    align-items: flex-start;
+}
+
+.lms-report-header-grid.is-info-center {
+    grid-template-columns: minmax(0, 130px) minmax(0, 1fr) minmax(0, 130px);
+}
+
+.lms-report-header-grid.is-info-left,
+.lms-report-header-grid.is-info-right {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 130px);
+}
+
+.lms-report-logo-slot {
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    align-self: stretch;
+}
+
+.lms-report-logo-slot-left {
+    justify-content: flex-start;
+}
+
+.lms-report-logo-slot-right {
+    justify-content: flex-end;
+}
+
+.lms-report-logo-slot.is-empty {
+    visibility: hidden;
 }
 
 .lms-report-logo {
-    width: 68px;
-    height: 68px;
+    width: 100%;
+    max-width: var(--lms-logo-max-width, 170px);
+    max-height: 100%;
     object-fit: contain;
-    border: 1px solid var(--lms-border);
-    border-radius: 10px;
-    background: #ffffff;
-    padding: 0.35rem;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
+    transform: translateX(var(--lms-logo-offset-x, 0));
 }
 
 .lms-report-lab-text h3,
 .lms-report-lab-text p {
     margin: 0;
+}
+
+.lms-report-lab-text {
+    display: grid;
+    gap: 0.2rem;
+}
+
+.lms-report-lab-text-left {
+    text-align: left;
+}
+
+.lms-report-lab-text-center {
+    text-align: center;
+}
+
+.lms-report-lab-text-right {
+    text-align: right;
 }
 
 .lms-report-lab-text h3 {
@@ -1037,6 +1201,27 @@ body.lms-print-body {
     .lms-control-sort {
         width: 100%;
         min-width: 100%;
+    }
+
+    .lms-report-header-grid.is-info-center,
+    .lms-report-header-grid.is-info-left,
+    .lms-report-header-grid.is-info-right {
+        grid-template-columns: 1fr;
+    }
+
+    .lms-report-logo-slot-left,
+    .lms-report-logo-slot-right {
+        justify-content: center;
+    }
+
+    .lms-report-logo-slot.is-empty {
+        display: none;
+    }
+
+    .lms-report-lab-text-left,
+    .lms-report-lab-text-center,
+    .lms-report-lab-text-right {
+        text-align: left;
     }
 }
 
