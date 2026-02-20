@@ -74,9 +74,10 @@ class AnalysisController extends Controller
             $analysesQuery->where('updated_at', '>=', Carbon::today()->subDays(29)->startOfDay());
         }
 
+        $sortExpression = 'CASE WHEN updated_at > created_at THEN updated_at ELSE analysis_date END';
+
         $analyses = $analysesQuery
-            ->orderBy('updated_at', $direction)
-            ->orderBy('analysis_date', $direction)
+            ->orderByRaw($sortExpression.' '.$direction)
             ->orderBy('id', $direction)
             ->paginate($perPage)
             ->withQueryString();

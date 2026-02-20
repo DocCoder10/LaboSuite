@@ -134,8 +134,40 @@ body.lms-body {
 
 .lms-list-filters {
     display: grid;
-    grid-template-columns: minmax(240px, 1.6fr) repeat(2, minmax(150px, 0.6fr));
+    grid-template-columns: minmax(260px, 1fr) minmax(150px, 180px) 128px 150px;
+    align-items: end;
     gap: 0.85rem;
+}
+
+.lms-filter-search {
+    min-width: 0;
+}
+
+.lms-filter-period {
+    min-width: 0;
+}
+
+.lms-filter-page,
+.lms-filter-sort {
+    min-width: 0;
+}
+
+.lms-filter-page {
+    width: 128px;
+}
+
+.lms-filter-sort {
+    width: 150px;
+}
+
+.lms-control-page {
+    width: 100%;
+    min-width: 100%;
+}
+
+.lms-control-sort {
+    width: 100%;
+    min-width: 100%;
 }
 
 .lms-card {
@@ -544,6 +576,14 @@ li.is-dragging > details > .lms-tree-node {
     flex-wrap: wrap;
 }
 
+.lms-results-shell {
+    transition: opacity 0.18s ease;
+}
+
+.lms-results-shell[data-loading='1'] {
+    opacity: 0.62;
+}
+
 .lms-table input,
 .lms-table select {
     width: 100%;
@@ -782,6 +822,16 @@ body.lms-print-body {
     }
 }
 
+@media screen and (max-width: 1200px) {
+    .lms-list-filters {
+        grid-template-columns: minmax(220px, 1fr) minmax(150px, 1fr) minmax(120px, 140px) minmax(140px, 160px);
+    }
+
+    .lms-filter-search {
+        grid-column: 1 / -1;
+    }
+}
+
 @media screen and (max-width: 1024px) {
     .lms-topbar {
         grid-template-columns: 1fr;
@@ -806,9 +856,37 @@ body.lms-print-body {
     }
 
     .lms-list-filters {
+        grid-template-columns: minmax(180px, 1fr) minmax(120px, 140px);
+        align-items: stretch;
+    }
+
+    .lms-filter-search,
+    .lms-filter-period {
+        grid-column: 1 / -1;
+    }
+}
+
+@media screen and (max-width: 640px) {
+    .lms-list-filters {
         grid-template-columns: 1fr;
     }
 
+    .lms-filter-search,
+    .lms-filter-period,
+    .lms-filter-page,
+    .lms-filter-sort {
+        grid-column: 1;
+        width: 100%;
+    }
+
+    .lms-control-page,
+    .lms-control-sort {
+        width: 100%;
+        min-width: 100%;
+    }
+}
+
+@media screen and (max-width: 1024px) {
     .lms-report-patient-grid {
         grid-template-columns: 1fr;
     }
