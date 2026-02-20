@@ -103,7 +103,14 @@
                         @endphp
                         <tr class="lms-report-row lms-report-row-level-1 {{ $categoryMergeEnabled && ($categoryMergeRow['is_abnormal'] ?? false) && $highlightAbnormal ? 'is-abnormal' : '' }}">
                             <td class="lms-report-analysis-cell lms-report-indented" style="{{ $indentStyle(1) }}">{{ $category['label'] }}</td>
-                            <td class="lms-report-result-cell">{{ $categoryMergeEnabled ? ($categoryMergeRow['result'] ?? '') : '' }}</td>
+                            <td class="lms-report-result-cell">
+                                @if ($categoryMergeEnabled)
+                                    <span class="lms-report-result-value">{{ $categoryMergeRow['result'] ?? '' }}</span>
+                                    @if (! empty($categoryMergeRow['abnormal_flag']))
+                                        <span class="lms-report-result-flag">{{ $categoryMergeRow['abnormal_flag'] }}</span>
+                                    @endif
+                                @endif
+                            </td>
                             @if ($showUnitColumn)
                                 <td>{{ $categoryMergeEnabled ? ($categoryMergeRow['unit'] ?? '-') : '' }}</td>
                             @endif
@@ -154,7 +161,12 @@
                                     <td class="lms-report-analysis-cell lms-report-indented" style="{{ $indentStyle($leafLevel) }}">
                                         {{ $lastLineage['label'] }}
                                     </td>
-                                    <td class="lms-report-result-cell">{{ $singleRow['result'] }}</td>
+                                    <td class="lms-report-result-cell">
+                                        <span class="lms-report-result-value">{{ $singleRow['result'] }}</span>
+                                        @if (! empty($singleRow['abnormal_flag']))
+                                            <span class="lms-report-result-flag">{{ $singleRow['abnormal_flag'] }}</span>
+                                        @endif
+                                    </td>
                                     @if ($showUnitColumn)
                                         <td>{{ $singleRow['unit'] }}</td>
                                     @endif
@@ -169,7 +181,12 @@
                                         <td class="lms-report-analysis-cell lms-report-indented" style="{{ $indentStyle($parameterLevel) }}">
                                             {{ $row['parameter'] }}
                                         </td>
-                                        <td class="lms-report-result-cell">{{ $row['result'] }}</td>
+                                        <td class="lms-report-result-cell">
+                                            <span class="lms-report-result-value">{{ $row['result'] }}</span>
+                                            @if (! empty($row['abnormal_flag']))
+                                                <span class="lms-report-result-flag">{{ $row['abnormal_flag'] }}</span>
+                                            @endif
+                                        </td>
                                         @if ($showUnitColumn)
                                             <td>{{ $row['unit'] }}</td>
                                         @endif

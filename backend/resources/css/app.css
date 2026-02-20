@@ -651,12 +651,25 @@ li.is-dragging > details > .lms-tree-node {
 
 .lms-report-result-cell {
     white-space: nowrap;
+    position: relative;
 }
 
-.lms-report-row-leaf.is-abnormal .lms-report-result-cell {
-    color: var(--lms-danger);
+.lms-report-result-value {
+    display: inline-block;
+}
+
+.lms-report-result-flag {
+    position: absolute;
+    left: 62%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    min-width: 1ch;
+    text-align: center;
     font-weight: 800;
-    padding-left: 0.55rem;
+}
+
+.lms-report-row.is-abnormal .lms-report-result-flag {
+    color: var(--lms-danger);
 }
 
 .lms-report-notes,

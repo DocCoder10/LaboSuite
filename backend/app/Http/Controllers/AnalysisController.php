@@ -490,10 +490,6 @@ class AnalysisController extends Controller
 
             $abnormalFlag = $this->resolveAbnormalFlag($parameter, $result);
 
-            if ($abnormalFlag !== null) {
-                $resultValue = trim($resultValue.' '.$abnormalFlag);
-            }
-
             $groups[$disciplineId]['categories'][$categoryId]['subcategories'][$subcategoryId]['rows'][] = [
                 'parameter' => $parameter->label($locale),
                 'result' => $resultValue,
