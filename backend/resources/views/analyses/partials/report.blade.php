@@ -10,6 +10,7 @@
         default => '-',
     };
     $logoSrc = trim((string) ($identity['logo_url'] ?? ($identity['logo_path'] ?? '')));
+    $normalizeLabel = static fn (?string $value): string => mb_strtolower(trim((string) $value));
 @endphp
 
 <article class="lms-card lms-report">
@@ -79,23 +80,59 @@
                     </tr>
 
                     @foreach ($discipline['categories'] as $category)
-                        <tr class="lms-report-row lms-report-row-level-1">
+                        @php
+                            $categorySubgroups = $category['subcategories'] ?? [];
+                            $categoryMergeRow = null;
+                            $categoryMergeEnabled = false;
+
+                            if (count($categorySubgroups) === 1) {
+                                $onlyGroup = $categorySubgroups[0];
+                                $onlyGroupLineage = $onlyGroup['lineage'] ?? [];
+                                $onlyGroupRows = $onlyGroup['rows'] ?? [];
+
+                                if (count($onlyGroupLineage) === 0 && count($onlyGroupRows) === 1) {
+                                    $candidateRow = $onlyGroupRows[0];
+                                    $categoryMergeEnabled = $normalizeLabel($candidateRow['parameter'] ?? '') === $normalizeLabel($category['label'] ?? '');
+                                    $categoryMergeRow = $categoryMergeEnabled ? $candidateRow : null;
+                                }
+                            }
+                        @endphp
+                        <tr class="lms-report-row lms-report-row-level-1 {{ $categoryMergeEnabled && ($categoryMergeRow['is_abnormal'] ?? false) && $highlightAbnormal ? 'is-abnormal' : '' }}">
                             <td class="lms-report-analysis-cell lms-report-indent-1">{{ $category['label'] }}</td>
-                            <td></td>
+                            <td class="lms-report-result-cell">{{ $categoryMergeEnabled ? ($categoryMergeRow['result'] ?? '') : '' }}</td>
                             @if ($showUnitColumn)
-                                <td></td>
+                                <td>{{ $categoryMergeEnabled ? ($categoryMergeRow['unit'] ?? '-') : '' }}</td>
                             @endif
-                            <td></td>
+                            <td>{{ $categoryMergeEnabled ? ($categoryMergeRow['reference'] ?? '-') : '' }}</td>
                         </tr>
 
-                        @foreach ($category['subcategories'] as $subcategory)
-                            @foreach ($subcategory['lineage'] as $lineage)
+                        @foreach ($categorySubgroups as $subcategory)
+                            @php
+                                $lineage = $subcategory['lineage'] ?? [];
+                                $rows = $subcategory['rows'] ?? [];
+                                $singleRow = count($rows) === 1 ? $rows[0] : null;
+                                $lastLineage = ! empty($lineage) ? $lineage[count($lineage) - 1] : null;
+                                $mergeLeafIntoLineage = $singleRow !== null
+                                    && is_array($lastLineage)
+                                    && $normalizeLabel($lastLineage['label'] ?? '') === $normalizeLabel($singleRow['parameter'] ?? '');
+                                $lineageToRender = $mergeLeafIntoLineage ? array_slice($lineage, 0, -1) : $lineage;
+                                $skipBecauseMergedIntoCategory = $categoryMergeEnabled
+                                    && count($lineage) === 0
+                                    && $singleRow !== null
+                                    && $normalizeLabel($singleRow['parameter'] ?? '') === $normalizeLabel($category['label'] ?? '');
+                            @endphp
+
+                            @if ($skipBecauseMergedIntoCategory)
+                                @continue
+                            @endif
+
+                            @foreach ($lineageToRender as $lineageNode)
                                 @php
-                                    $displayLevel = 1 + (int) $lineage['depth'];
+                                    $displayLevel = 1 + (int) $lineageNode['depth'];
                                 @endphp
                                 <tr class="lms-report-row lms-report-row-level-{{ $displayLevel }}">
                                     <td class="lms-report-analysis-cell lms-report-indent-{{ $displayLevel }}">
-                                        {{ $lineage['label'] }}
+                                        {{ $lineageNode['label'] }}
                                     </td>
                                     <td></td>
                                     @if ($showUnitColumn)
@@ -105,21 +142,37 @@
                                 </tr>
                             @endforeach
 
-                            @foreach ($subcategory['rows'] as $row)
+                            @if ($mergeLeafIntoLineage && $singleRow !== null && is_array($lastLineage))
                                 @php
-                                    $parameterLevel = 2 + count($subcategory['lineage']);
+                                    $leafLevel = 1 + (int) ($lastLineage['depth'] ?? 1);
                                 @endphp
-                                <tr class="lms-report-row lms-report-row-leaf {{ $row['is_abnormal'] && $highlightAbnormal ? 'is-abnormal' : '' }}">
-                                    <td class="lms-report-analysis-cell lms-report-indent-{{ $parameterLevel }}">
-                                        {{ $row['parameter'] }}
+                                <tr class="lms-report-row lms-report-row-leaf {{ $singleRow['is_abnormal'] && $highlightAbnormal ? 'is-abnormal' : '' }}">
+                                    <td class="lms-report-analysis-cell lms-report-indent-{{ $leafLevel }}">
+                                        {{ $lastLineage['label'] }}
                                     </td>
-                                    <td class="lms-report-result-cell">{{ $row['result'] }}</td>
+                                    <td class="lms-report-result-cell">{{ $singleRow['result'] }}</td>
                                     @if ($showUnitColumn)
-                                        <td>{{ $row['unit'] }}</td>
+                                        <td>{{ $singleRow['unit'] }}</td>
                                     @endif
-                                    <td>{{ $row['reference'] }}</td>
+                                    <td>{{ $singleRow['reference'] }}</td>
                                 </tr>
-                            @endforeach
+                            @else
+                                @foreach ($rows as $row)
+                                    @php
+                                        $parameterLevel = 2 + count($lineage);
+                                    @endphp
+                                    <tr class="lms-report-row lms-report-row-leaf {{ $row['is_abnormal'] && $highlightAbnormal ? 'is-abnormal' : '' }}">
+                                        <td class="lms-report-analysis-cell lms-report-indent-{{ $parameterLevel }}">
+                                            {{ $row['parameter'] }}
+                                        </td>
+                                        <td class="lms-report-result-cell">{{ $row['result'] }}</td>
+                                        @if ($showUnitColumn)
+                                            <td>{{ $row['unit'] }}</td>
+                                        @endif
+                                        <td>{{ $row['reference'] }}</td>
+                                    </tr>
+                                @endforeach
+                            @endif
                         @endforeach
                     @endforeach
                 @endforeach

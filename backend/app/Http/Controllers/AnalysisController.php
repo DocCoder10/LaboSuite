@@ -376,7 +376,7 @@ class AnalysisController extends Controller
                         'id' => $parameter->subcategory_id,
                         'label' => $parameter->subcategory
                             ? $parameter->subcategory->label($locale)
-                            : __('messages.no_subcategory'),
+                            : null,
                         'sort_order' => $parameter->subcategory?->sort_order ?? 0,
                         'rows' => [],
                     ];
