@@ -14,6 +14,9 @@ Route::get('/analyses/new/results', [AnalysisController::class, 'results'])->nam
 Route::post('/analyses', [AnalysisController::class, 'store'])->name('analyses.store');
 Route::get('/analyses/{analysis}', [AnalysisController::class, 'show'])->name('analyses.show');
 Route::get('/analyses/{analysis}/print', [AnalysisController::class, 'print'])->name('analyses.print');
+Route::get('/analyses/{analysis}/edit', [AnalysisController::class, 'edit'])->name('analyses.edit');
+Route::put('/analyses/{analysis}', [AnalysisController::class, 'update'])->name('analyses.update');
+Route::delete('/analyses/{analysis}', [AnalysisController::class, 'destroy'])->name('analyses.destroy');
 
 Route::get('/catalog', [CatalogController::class, 'index'])->name('catalog.index');
 Route::post('/catalog/disciplines', [CatalogController::class, 'storeDiscipline'])->name('catalog.disciplines.store');

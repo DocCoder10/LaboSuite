@@ -107,6 +107,17 @@ body.lms-body {
     gap: 0.75rem;
 }
 
+.lms-sticky-head {
+    position: sticky;
+    top: 0.45rem;
+    z-index: 12;
+    padding: 0.75rem 0.85rem;
+    border: 1px solid var(--lms-border);
+    border-radius: 14px;
+    background: rgba(248, 250, 252, 0.95);
+    backdrop-filter: blur(3px);
+}
+
 .lms-page-head h2 {
     margin: 0;
     font-size: 1.25rem;
@@ -119,6 +130,12 @@ body.lms-body {
 
 .lms-wrap-actions {
     flex-wrap: wrap;
+}
+
+.lms-list-filters {
+    display: grid;
+    grid-template-columns: minmax(240px, 1.6fr) repeat(2, minmax(150px, 0.6fr));
+    gap: 0.85rem;
 }
 
 .lms-card {
@@ -477,6 +494,11 @@ li.is-dragging > details > .lms-tree-node {
     overflow-x: auto;
 }
 
+.lms-table-wrap-list {
+    max-height: 64vh;
+    overflow: auto;
+}
+
 .lms-table {
     width: 100%;
     border-collapse: collapse;
@@ -492,7 +514,34 @@ li.is-dragging > details > .lms-tree-node {
 }
 
 .lms-actions-cell {
-    width: 140px;
+    min-width: 360px;
+}
+
+.lms-table-list thead th {
+    position: sticky;
+    top: 0;
+    background: #f8fafc;
+    z-index: 2;
+}
+
+.lms-sort-link {
+    color: var(--lms-ink);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.lms-sort-link:hover {
+    text-decoration: underline;
+}
+
+.lms-list-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
 }
 
 .lms-table input,
@@ -754,6 +803,10 @@ body.lms-print-body {
     .lms-page-head {
         flex-direction: column;
         align-items: flex-start;
+    }
+
+    .lms-list-filters {
+        grid-template-columns: 1fr;
     }
 
     .lms-report-patient-grid {

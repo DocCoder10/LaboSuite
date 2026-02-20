@@ -19,15 +19,75 @@ use Illuminate\View\View;
 
 class AnalysisController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
-        $analyses = LabAnalysis::query()
-            ->with('patient')
-            ->latest('analysis_date')
-            ->latest('id')
-            ->paginate(12);
+        $search = trim((string) $request->string('search'));
+        $period = (string) $request->string('period', 'all');
+        $sort = (string) $request->string('sort', 'date');
+        $direction = strtolower((string) $request->string('direction', 'desc')) === 'asc' ? 'asc' : 'desc';
+        $perPage = (int) $request->integer('per_page', 15);
+
+        $allowedPeriods = ['all', 'today', '7_days', '30_days'];
+        $allowedPerPage = [15, 20];
+
+        if (! in_array($period, $allowedPeriods, true)) {
+            $period = 'all';
+        }
+
+        if (! in_array($perPage, $allowedPerPage, true)) {
+            $perPage = 15;
+        }
+
+        if ($sort !== 'date') {
+            $sort = 'date';
+        }
+
+        $analysesQuery = LabAnalysis::query()
+            ->with('patient');
+
+        if ($search !== '') {
+            $searchLike = '%'.$search.'%';
+
+            $analysesQuery->where(function ($query) use ($searchLike) {
+                $query
+                    ->where('analysis_number', 'like', $searchLike)
+                    ->orWhereHas('patient', function ($patientQuery) use ($searchLike) {
+                        $patientQuery
+                            ->where('identifier', 'like', $searchLike)
+                            ->orWhere('first_name', 'like', $searchLike)
+                            ->orWhere('last_name', 'like', $searchLike)
+                            ->orWhereRaw("CONCAT(last_name, ' ', first_name) LIKE ?", [$searchLike])
+                            ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", [$searchLike]);
+                    });
+            });
+        }
+
+        if ($period === 'today') {
+            $analysesQuery->whereDate('updated_at', Carbon::today());
+        }
+
+        if ($period === '7_days') {
+            $analysesQuery->where('updated_at', '>=', Carbon::today()->subDays(6)->startOfDay());
+        }
+
+        if ($period === '30_days') {
+            $analysesQuery->where('updated_at', '>=', Carbon::today()->subDays(29)->startOfDay());
+        }
+
+        $analyses = $analysesQuery
+            ->orderBy('updated_at', $direction)
+            ->orderBy('analysis_date', $direction)
+            ->orderBy('id', $direction)
+            ->paginate($perPage)
+            ->withQueryString();
 
         return view('analyses.index', [
+            'search' => $search,
+            'period' => $period,
+            'sort' => $sort,
+            'direction' => $direction,
+            'perPage' => $perPage,
+            'listQuery' => $this->extractListQuery($request, $search, $period, $sort, $direction, $perPage),
             'analyses' => $analyses,
         ]);
     }
@@ -267,7 +327,10 @@ class AnalysisController extends Controller
             'categories.discipline',
         ]);
 
-        return view('analyses.show', $this->buildReportViewData($analysis));
+        return view('analyses.show', [
+            ...$this->buildReportViewData($analysis),
+            'listQuery' => $this->extractListQuery(request()),
+        ]);
     }
 
     public function print(LabAnalysis $analysis): View
@@ -282,6 +345,127 @@ class AnalysisController extends Controller
         ]);
 
         return view('analyses.print', $this->buildReportViewData($analysis));
+    }
+
+    public function edit(Request $request, LabAnalysis $analysis): View
+    {
+        $analysis->load([
+            'patient',
+            'results.parameter.discipline',
+            'results.parameter.category',
+            'results.parameter.subcategory',
+        ]);
+
+        return view('analyses.edit', [
+            ...$this->buildEditViewData($analysis),
+            'listQuery' => $this->extractListQuery($request),
+        ]);
+    }
+
+    public function update(Request $request, LabAnalysis $analysis): RedirectResponse
+    {
+        $analysis->load([
+            'results.parameter',
+        ]);
+
+        $validated = $request->validate([
+            'results' => ['required', 'array'],
+            'notes' => ['nullable', 'string'],
+        ]);
+
+        $results = $validated['results'] ?? [];
+        $resultModels = $analysis->results->keyBy('lab_parameter_id');
+
+        $parameters = $analysis->results
+            ->pluck('parameter')
+            ->filter(fn (mixed $parameter) => $parameter instanceof LabParameter)
+            ->keyBy('id');
+
+        $missingParameter = $parameters->first(function (LabParameter $parameter) use ($results) {
+            $rawValue = trim((string) ($results[$parameter->id] ?? ''));
+
+            return $rawValue === '';
+        });
+
+        if ($missingParameter) {
+            return back()
+                ->withErrors([
+                    'results' => __('messages.result_required_parameter', [
+                        'parameter' => $missingParameter->label(app()->getLocale()),
+                    ]),
+                ])
+                ->withInput();
+        }
+
+        $invalidListParameter = $parameters->first(function (LabParameter $parameter) use ($results) {
+            if ($parameter->value_type !== 'list') {
+                return false;
+            }
+
+            $options = is_array($parameter->options) ? $parameter->options : [];
+
+            if ($options === []) {
+                return false;
+            }
+
+            $rawValue = trim((string) ($results[$parameter->id] ?? ''));
+
+            return ! in_array($rawValue, $options, true);
+        });
+
+        if ($invalidListParameter) {
+            return back()
+                ->withErrors([
+                    'results' => __('messages.result_invalid_option', [
+                        'parameter' => $invalidListParameter->label(app()->getLocale()),
+                    ]),
+                ])
+                ->withInput();
+        }
+
+        DB::transaction(function () use ($analysis, $validated, $results, $resultModels, $parameters) {
+            $analysis->notes = $validated['notes'] ?? null;
+            $analysis->save();
+
+            foreach ($parameters as $parameterId => $parameter) {
+                $analysisResult = $resultModels->get((int) $parameterId);
+
+                if (! $analysisResult) {
+                    continue;
+                }
+
+                $rawValue = trim((string) ($results[$parameterId] ?? ''));
+                $numericValue = $parameter->value_type === 'number'
+                    ? $this->parseNumericValue($rawValue)
+                    : null;
+
+                $analysisResult->update([
+                    'result_value' => $rawValue,
+                    'result_numeric' => $numericValue,
+                    'is_abnormal' => $this->isAbnormal($parameter, $rawValue),
+                ]);
+            }
+
+            $analysis->touch();
+        });
+
+        return redirect()
+            ->route('analyses.show', [
+                'analysis' => $analysis,
+                ...$this->extractListQuery($request),
+            ])
+            ->with('status', __('messages.analysis_updated'));
+    }
+
+    public function destroy(Request $request, LabAnalysis $analysis): RedirectResponse
+    {
+        $listQuery = $this->extractListQuery($request);
+
+        $analysis->delete();
+
+        return redirect()
+            ->route('analyses.index', $listQuery)
+            ->with('status', __('messages.analysis_deleted'));
     }
 
     private function loadActiveDisciplines(): Collection
@@ -538,6 +722,104 @@ class AnalysisController extends Controller
         ];
     }
 
+    private function buildEditViewData(LabAnalysis $analysis): array
+    {
+        $locale = app()->getLocale();
+        $groups = [];
+
+        foreach ($analysis->results as $result) {
+            $parameter = $result->parameter;
+
+            if (! $parameter) {
+                continue;
+            }
+
+            $discipline = $parameter->discipline;
+            $category = $parameter->category;
+            $subcategory = $parameter->subcategory;
+
+            if (! $discipline || ! $category) {
+                continue;
+            }
+
+            $disciplineId = (string) $discipline->id;
+            $categoryId = (string) $category->id;
+            $subcategoryId = $subcategory ? (string) $subcategory->id : 'none';
+
+            if (! isset($groups[$disciplineId])) {
+                $groups[$disciplineId] = [
+                    'id' => $discipline->id,
+                    'label' => $discipline->label($locale),
+                    'sort_order' => $discipline->sort_order,
+                    'categories' => [],
+                ];
+            }
+
+            if (! isset($groups[$disciplineId]['categories'][$categoryId])) {
+                $groups[$disciplineId]['categories'][$categoryId] = [
+                    'id' => $category->id,
+                    'label' => $category->label($locale),
+                    'sort_order' => $category->sort_order,
+                    'subcategories' => [],
+                ];
+            }
+
+            if (! isset($groups[$disciplineId]['categories'][$categoryId]['subcategories'][$subcategoryId])) {
+                $groups[$disciplineId]['categories'][$categoryId]['subcategories'][$subcategoryId] = [
+                    'id' => $subcategory?->id,
+                    'label' => $subcategory?->label($locale),
+                    'sort_order' => $subcategory?->sort_order ?? 0,
+                    'rows' => [],
+                ];
+            }
+
+            $groups[$disciplineId]['categories'][$categoryId]['subcategories'][$subcategoryId]['rows'][] = [
+                'id' => $parameter->id,
+                'label' => $parameter->label($locale),
+                'value_type' => $parameter->value_type,
+                'options' => is_array($parameter->options) ? $parameter->options : [],
+                'unit' => $parameter->unit,
+                'reference' => $parameter->referenceRange(),
+                'current_value' => $result->result_value,
+                'sort_order' => $parameter->sort_order,
+            ];
+        }
+
+        $groups = collect($groups)
+            ->sortBy('sort_order')
+            ->map(function (array $discipline) {
+                $discipline['categories'] = collect($discipline['categories'])
+                    ->sortBy('sort_order')
+                    ->map(function (array $category) {
+                        $category['subcategories'] = collect($category['subcategories'])
+                            ->sortBy('sort_order')
+                            ->map(function (array $subcategory) {
+                                $subcategory['rows'] = collect($subcategory['rows'])
+                                    ->sortBy('sort_order')
+                                    ->values()
+                                    ->all();
+
+                                return $subcategory;
+                            })
+                            ->values()
+                            ->all();
+
+                        return $category;
+                    })
+                    ->values()
+                    ->all();
+
+                return $discipline;
+            })
+            ->values()
+            ->all();
+
+        return [
+            'analysis' => $analysis,
+            'groups' => $groups,
+        ];
+    }
+
     private function isAbnormal(LabParameter $parameter, string $rawValue): bool
     {
         if ($parameter->value_type === 'number') {
@@ -635,5 +917,48 @@ class AnalysisController extends Controller
         }
 
         return (float) $normalized;
+    }
+
+    private function extractListQuery(
+        Request $request,
+        ?string $search = null,
+        ?string $period = null,
+        ?string $sort = null,
+        ?string $direction = null,
+        ?int $perPage = null
+    ): array {
+        $search = $search ?? trim((string) $request->string('search'));
+        $period = $period ?? (string) $request->string('period', 'all');
+        $sort = $sort ?? (string) $request->string('sort', 'date');
+        $direction = $direction ?? strtolower((string) $request->string('direction', 'desc'));
+        $perPage = $perPage ?? (int) $request->integer('per_page', 15);
+        $page = $request->integer('page');
+
+        if (! in_array($period, ['all', 'today', '7_days', '30_days'], true)) {
+            $period = 'all';
+        }
+
+        if ($sort !== 'date') {
+            $sort = 'date';
+        }
+
+        if (! in_array($direction, ['asc', 'desc'], true)) {
+            $direction = 'desc';
+        }
+
+        if (! in_array($perPage, [15, 20], true)) {
+            $perPage = 15;
+        }
+
+        $query = [
+            'search' => $search !== '' ? $search : null,
+            'period' => $period !== 'all' ? $period : null,
+            'sort' => $sort !== 'date' ? $sort : null,
+            'direction' => $direction !== 'desc' ? $direction : null,
+            'per_page' => $perPage !== 15 ? $perPage : null,
+            'page' => $page > 1 ? $page : null,
+        ];
+
+        return array_filter($query, fn (mixed $value) => $value !== null);
     }
 }
