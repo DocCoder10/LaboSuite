@@ -118,7 +118,7 @@
                     <table class="lms-table lms-table-patient-fields">
                         <thead>
                             <tr>
-                                <th>{{ __('messages.parameter') }}</th>
+                                <th>{{ __('messages.field_key') }}</th>
                                 <th>{{ __('messages.name') }}</th>
                                 <th>{{ __('messages.value_type') }}</th>
                                 <th>{{ __('messages.status') }}</th>
