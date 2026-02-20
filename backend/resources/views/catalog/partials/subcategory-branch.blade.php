@@ -1,6 +1,14 @@
 @php
     $childDepth = $depth + 1;
-    $hasSubcategoryChildren = $subcategory->parameters->isNotEmpty() || $subcategory->children->isNotEmpty();
+    $leafParameter = $subcategory->parameters->first();
+    $hasSubcategoryParameters = $leafParameter !== null;
+    $hasSubcategoryChildren = $subcategory->children->isNotEmpty();
+    $leafReference = $leafParameter && ($leafParameter->normal_min !== null || $leafParameter->normal_max !== null)
+        ? trim((string) $leafParameter->normal_min.' - '.(string) $leafParameter->normal_max)
+        : ($leafParameter?->normal_text ?? '');
+    $leafOptionsCsv = $leafParameter && is_array($leafParameter->options)
+        ? implode(', ', $leafParameter->options)
+        : '';
 @endphp
 
 <li>
@@ -20,53 +28,31 @@
             data-depth="{{ $depth }}"
             data-subcategory-depth="{{ $subcategory->depth }}"
             data-has-children="{{ $hasSubcategoryChildren ? 1 : 0 }}"
+            data-has-parameters="{{ $hasSubcategoryParameters ? 1 : 0 }}"
+            data-leaf-parameter-id="{{ $leafParameter?->id ?? '' }}"
+            data-leaf-parameter-name="{{ $leafParameter?->name ?? '' }}"
+            data-leaf-parameter-active="{{ $leafParameter?->is_active ? 1 : 0 }}"
+            data-leaf-parameter-visible="{{ $leafParameter?->is_visible ? 1 : 0 }}"
+            data-leaf-parameter-value-type="{{ $leafParameter?->value_type ?? 'number' }}"
+            data-leaf-parameter-unit="{{ $leafParameter?->unit ?? '' }}"
+            data-leaf-parameter-reference="{{ $leafReference }}"
+            data-leaf-parameter-options-csv="{{ $leafOptionsCsv }}"
+            data-leaf-parameter-default-value="{{ $leafParameter?->default_value ?? '' }}"
             draggable="true"
         >
-            <span class="lms-tree-arrow" aria-hidden="true"></span>
+            @if ($hasSubcategoryChildren)
+                <span class="lms-tree-arrow" aria-hidden="true"></span>
+            @endif
             <span class="lms-tree-label">{{ $subcategory->name }}</span>
             <span class="lms-tree-drag-handle" data-drag-handle title="{{ __('messages.drag_to_reorder') }}" aria-label="{{ __('messages.drag_to_reorder') }}">⋮⋮</span>
         </summary>
 
         <ul class="lms-tree-children">
-            @foreach ($subcategory->parameters as $parameter)
-                @php
-                    $reference = $parameter->normal_min !== null || $parameter->normal_max !== null
-                        ? trim((string) $parameter->normal_min.' - '.(string) $parameter->normal_max)
-                        : ($parameter->normal_text ?? '');
-                    $optionsCsv = is_array($parameter->options) ? implode(', ', $parameter->options) : '';
-                @endphp
-                <li>
-                    <button
-                        type="button"
-                        class="lms-tree-node lms-tree-leaf"
-                        data-node-type="parameter"
-                        data-id="{{ $parameter->id }}"
-                        data-category-id="{{ $category->id }}"
-                        data-parent-id="{{ $subcategory->id }}"
-                        data-parent-type="subcategory"
-                        data-subcategory-id="{{ $subcategory->id }}"
-                        data-name="{{ $parameter->name }}"
-                        data-sort-order="{{ $parameter->sort_order }}"
-                        data-active="{{ $parameter->is_active ? 1 : 0 }}"
-                        data-visible="{{ $parameter->is_visible ? 1 : 0 }}"
-                        data-value-type="{{ $parameter->value_type }}"
-                        data-unit="{{ $parameter->unit ?? '' }}"
-                        data-reference="{{ $reference }}"
-                        data-options-csv="{{ $optionsCsv }}"
-                        data-default-value="{{ $parameter->default_value ?? '' }}"
-                        data-depth="{{ $childDepth }}"
-                        data-has-children="0"
-                    >
-                        {{ $parameter->name }}
-                    </button>
-                </li>
-            @endforeach
-
             @foreach ($subcategory->children as $child)
                 @include('catalog.partials.subcategory-branch', ['subcategory' => $child, 'category' => $category, 'depth' => $childDepth])
             @endforeach
 
-            @if ($subcategory->parameters->isEmpty() && $subcategory->children->isEmpty())
+            @if ($subcategory->children->isEmpty() && ! $hasSubcategoryParameters)
                 <li class="lms-tree-empty">{{ __('messages.catalog_no_parameter') }}</li>
             @endif
         </ul>

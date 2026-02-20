@@ -137,7 +137,7 @@ class CatalogController extends Controller
         return back()->with('status', __('messages.catalog_saved'));
     }
 
-    public function storeCategory(Request $request): RedirectResponse
+    public function storeCategory(Request $request): RedirectResponse|JsonResponse
     {
         $data = $request->validate([
             'discipline_id' => ['required', 'exists:disciplines,id'],
@@ -149,7 +149,7 @@ class CatalogController extends Controller
 
         $this->assertUniqueCategoryName($disciplineId, $name);
 
-        Category::query()->create([
+        $category = Category::query()->create([
             'discipline_id' => $disciplineId,
             'code' => $this->generateUniqueCode(
                 'categorie',
@@ -163,6 +163,19 @@ class CatalogController extends Controller
             ),
             'is_active' => true,
         ]);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'status' => 'ok',
+                'item' => [
+                    'id' => (int) $category->id,
+                    'discipline_id' => (int) $category->discipline_id,
+                    'name' => $category->name,
+                    'sort_order' => (int) $category->sort_order,
+                    'is_active' => (bool) $category->is_active,
+                ],
+            ], 201);
+        }
 
         return back()->with('status', __('messages.catalog_saved'));
     }
@@ -221,12 +234,13 @@ class CatalogController extends Controller
         return back()->with('status', __('messages.catalog_saved'));
     }
 
-    public function storeSubcategory(Request $request): RedirectResponse
+    public function storeSubcategory(Request $request): RedirectResponse|JsonResponse
     {
         $data = $request->validate([
             'category_id' => ['required', 'exists:categories,id'],
             'parent_subcategory_id' => ['nullable', 'integer', 'exists:subcategories,id'],
             'name' => ['required', 'string', 'max:120'],
+            'force_convert_parent' => ['nullable', 'boolean'],
         ]);
 
         $name = trim($data['name']);
@@ -246,22 +260,48 @@ class CatalogController extends Controller
 
         $this->assertNotSameAsParentName($parent?->name ?? $category->name, $name);
         $this->assertUniqueSubcategoryName($category->id, $parent?->id, $name);
-        $this->convertParentToContainer($category, $parent);
 
-        Subcategory::query()->create([
-            'category_id' => $category->id,
-            'parent_subcategory_id' => $parent?->id,
-            'depth' => $depth,
-            'code' => $this->generateUniqueCode(
-                'sous-categorie',
-                $name,
-                fn (string $code) => Subcategory::query()->where('code', $code)->exists(),
-            ),
-            'name' => $name,
-            'labels' => $this->buildLabels($name),
-            'sort_order' => $this->nextSortOrder($this->subcategorySiblingQuery($category->id, $parent?->id)),
-            'is_active' => true,
-        ]);
+        $createdSubcategory = null;
+
+        DB::transaction(function () use ($category, $parent, $request, $depth, $name, &$createdSubcategory): void {
+            $this->assertParentCanBecomeContainer(
+                $category,
+                $parent,
+                $request->boolean('force_convert_parent')
+            );
+
+            $createdSubcategory = Subcategory::query()->create([
+                'category_id' => $category->id,
+                'parent_subcategory_id' => $parent?->id,
+                'depth' => $depth,
+                'code' => $this->generateUniqueCode(
+                    'sous-categorie',
+                    $name,
+                    fn (string $code) => Subcategory::query()->where('code', $code)->exists(),
+                ),
+                'name' => $name,
+                'labels' => $this->buildLabels($name),
+                'sort_order' => $this->nextSortOrder($this->subcategorySiblingQuery($category->id, $parent?->id)),
+                'is_active' => true,
+            ]);
+        });
+
+        if ($request->expectsJson() && $createdSubcategory) {
+            return response()->json([
+                'status' => 'ok',
+                'item' => [
+                    'id' => (int) $createdSubcategory->id,
+                    'category_id' => (int) $createdSubcategory->category_id,
+                    'parent_subcategory_id' => $createdSubcategory->parent_subcategory_id !== null
+                        ? (int) $createdSubcategory->parent_subcategory_id
+                        : null,
+                    'depth' => (int) $createdSubcategory->depth,
+                    'name' => $createdSubcategory->name,
+                    'sort_order' => (int) $createdSubcategory->sort_order,
+                    'is_active' => (bool) $createdSubcategory->is_active,
+                ],
+            ], 201);
+        }
 
         return back()->with('status', __('messages.catalog_saved'));
     }
@@ -273,6 +313,7 @@ class CatalogController extends Controller
             'parent_subcategory_id' => ['nullable', 'integer', 'exists:subcategories,id'],
             'name' => ['required', 'string', 'max:120'],
             'is_active' => ['nullable', 'boolean'],
+            'force_convert_parent' => ['nullable', 'boolean'],
         ]);
 
         $name = trim($data['name']);
@@ -308,7 +349,6 @@ class CatalogController extends Controller
 
         $this->assertNotSameAsParentName($parent?->name ?? $category->name, $name);
         $this->assertUniqueSubcategoryName($category->id, $parent?->id, $name, $subcategory->id);
-        $this->convertParentToContainer($category, $parent);
 
         $sortOrder = ($categoryChanged || $parentChanged)
             ? $this->nextSortOrder(
@@ -317,24 +357,44 @@ class CatalogController extends Controller
             )
             : (int) $subcategory->sort_order;
 
-        $subcategory->update([
-            'category_id' => (int) $category->id,
-            'parent_subcategory_id' => $parent?->id,
-            'depth' => $depth,
-            'name' => $name,
-            'labels' => $this->buildLabels($name),
-            'sort_order' => $sortOrder,
-            'is_active' => $request->boolean('is_active'),
-        ]);
+        DB::transaction(function () use (
+            $categoryChanged,
+            $parentChanged,
+            $category,
+            $parent,
+            $request,
+            $subcategory,
+            $depth,
+            $name,
+            $sortOrder
+        ): void {
+            if ($categoryChanged || $parentChanged) {
+                $this->assertParentCanBecomeContainer(
+                    $category,
+                    $parent,
+                    $request->boolean('force_convert_parent')
+                );
+            }
 
-        if ($categoryChanged) {
-            LabParameter::query()
-                ->where('subcategory_id', $subcategory->id)
-                ->update([
-                    'discipline_id' => $category->discipline_id,
-                    'category_id' => $category->id,
-                ]);
-        }
+            $subcategory->update([
+                'category_id' => (int) $category->id,
+                'parent_subcategory_id' => $parent?->id,
+                'depth' => $depth,
+                'name' => $name,
+                'labels' => $this->buildLabels($name),
+                'sort_order' => $sortOrder,
+                'is_active' => $request->boolean('is_active'),
+            ]);
+
+            if ($categoryChanged) {
+                LabParameter::query()
+                    ->where('subcategory_id', $subcategory->id)
+                    ->update([
+                        'discipline_id' => $category->discipline_id,
+                        'category_id' => $category->id,
+                    ]);
+            }
+        });
 
         return back()->with('status', __('messages.catalog_saved'));
     }
@@ -352,39 +412,48 @@ class CatalogController extends Controller
         return back()->with('status', __('messages.catalog_saved'));
     }
 
-    public function storeParameter(Request $request): RedirectResponse
+    public function storeParameter(Request $request): RedirectResponse|JsonResponse
     {
         $data = $request->validate([
             'category_id' => ['required', 'exists:categories,id'],
             'subcategory_id' => ['nullable', 'integer', 'exists:subcategories,id'],
-            'name' => ['required', 'string', 'max:120'],
+            'name' => ['nullable', 'string', 'max:120'],
             'unit' => ['nullable', 'string', 'max:40'],
-            'value_type' => ['required', Rule::in(['number', 'text', 'list'])],
+            'value_type' => ['nullable', Rule::in(['number', 'text', 'list'])],
             'reference' => ['nullable', 'string', 'max:255'],
             'options_csv' => ['nullable', 'string'],
             'default_option_value' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $name = trim($data['name']);
+        $valueType = $data['value_type'] ?? 'number';
         $category = Category::query()->with('discipline')->findOrFail((int) $data['category_id']);
         $subcategory = $this->resolveSubcategoryForCategory(
             $category,
             isset($data['subcategory_id']) ? (int) $data['subcategory_id'] : null
         );
+        $name = trim((string) ($data['name'] ?? ''));
+        if ($name === '') {
+            $name = $subcategory?->name ?? $category->name;
+        }
 
         $this->assertCanAttachParameter($category, $subcategory);
-        $this->assertNotSameAsParentName($subcategory?->name ?? $category->name, $name);
+        $leafAlreadyHasParameter = $this->parameterSiblingQuery($category->id, $subcategory?->id)->exists();
+        if ($leafAlreadyHasParameter) {
+            throw ValidationException::withMessages([
+                'subcategory_id' => __('messages.catalog_leaf_single_parameter'),
+            ]);
+        }
         $this->assertUniqueParameterName($category->id, $subcategory?->id, $name);
 
         $options = $this->parseOptions($data['options_csv'] ?? null);
         $defaultValue = $this->resolveDefaultOptionValue(
-            $data['value_type'],
+            $valueType,
             $options,
             $data['default_option_value'] ?? null
         );
-        [$normalMin, $normalMax, $normalText] = $this->extractReferenceFields($data['value_type'], $data['reference'] ?? null);
+        [$normalMin, $normalMax, $normalText] = $this->extractReferenceFields($valueType, $data['reference'] ?? null);
 
-        LabParameter::query()->create([
+        $parameter = LabParameter::query()->create([
             'discipline_id' => $category->discipline_id,
             'category_id' => $category->id,
             'subcategory_id' => $subcategory?->id,
@@ -396,7 +465,7 @@ class CatalogController extends Controller
             'name' => $name,
             'labels' => $this->buildLabels($name),
             'unit' => ($data['unit'] ?? '') !== '' ? $data['unit'] : null,
-            'value_type' => $data['value_type'],
+            'value_type' => $valueType,
             'normal_min' => $normalMin,
             'normal_max' => $normalMax,
             'normal_text' => $normalText,
@@ -413,6 +482,26 @@ class CatalogController extends Controller
             'is_active' => true,
         ]);
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'status' => 'ok',
+                'item' => [
+                    'id' => (int) $parameter->id,
+                    'category_id' => (int) $parameter->category_id,
+                    'subcategory_id' => $parameter->subcategory_id !== null ? (int) $parameter->subcategory_id : null,
+                    'name' => $parameter->name,
+                    'sort_order' => (int) $parameter->sort_order,
+                    'is_active' => (bool) $parameter->is_active,
+                    'is_visible' => (bool) $parameter->is_visible,
+                    'value_type' => $parameter->value_type,
+                    'unit' => $parameter->unit,
+                    'reference' => $parameter->referenceRange(),
+                    'options_csv' => is_array($parameter->options) ? implode(', ', $parameter->options) : '',
+                    'default_value' => $parameter->default_value,
+                ],
+            ], 201);
+        }
+
         return back()->with('status', __('messages.catalog_saved'));
     }
 
@@ -421,7 +510,7 @@ class CatalogController extends Controller
         $data = $request->validate([
             'category_id' => ['required', 'exists:categories,id'],
             'subcategory_id' => ['nullable', 'integer', 'exists:subcategories,id'],
-            'name' => ['required', 'string', 'max:120'],
+            'name' => ['nullable', 'string', 'max:120'],
             'unit' => ['nullable', 'string', 'max:40'],
             'value_type' => ['required', Rule::in(['number', 'text', 'list'])],
             'reference' => ['nullable', 'string', 'max:255'],
@@ -431,19 +520,33 @@ class CatalogController extends Controller
             'is_active' => ['nullable', 'boolean'],
         ]);
 
-        $name = trim($data['name']);
         $category = Category::query()->findOrFail((int) $data['category_id']);
         $subcategory = $this->resolveSubcategoryForCategory(
             $category,
             isset($data['subcategory_id']) ? (int) $data['subcategory_id'] : null
         );
+        $name = trim((string) ($data['name'] ?? ''));
+        if ($name === '') {
+            $name = $subcategory?->name ?? $category->name;
+        }
 
         $this->assertCanAttachParameter($category, $subcategory);
-        $this->assertNotSameAsParentName($subcategory?->name ?? $category->name, $name);
         $this->assertUniqueParameterName($category->id, $subcategory?->id, $name, $parameter->id);
 
         $parentChanged = (int) $parameter->category_id !== (int) $category->id
             || (int) ($parameter->subcategory_id ?? 0) !== (int) ($subcategory?->id ?? 0);
+
+        if ($parentChanged) {
+            $targetHasLeafParameter = $this->parameterSiblingQuery($category->id, $subcategory?->id)
+                ->whereKeyNot($parameter->id)
+                ->exists();
+
+            if ($targetHasLeafParameter) {
+                throw ValidationException::withMessages([
+                    'subcategory_id' => __('messages.catalog_leaf_single_parameter'),
+                ]);
+            }
+        }
 
         $options = $this->parseOptions($data['options_csv'] ?? null);
         $defaultValue = $this->resolveDefaultOptionValue(
@@ -491,7 +594,7 @@ class CatalogController extends Controller
     public function reorder(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'type' => ['required', Rule::in(['category', 'subcategory'])],
+            'type' => ['required', Rule::in(['discipline', 'category', 'subcategory'])],
             'ordered_ids' => ['required', 'array', 'min:1'],
             'ordered_ids.*' => ['integer'],
             'discipline_id' => ['nullable', 'integer', 'exists:disciplines,id'],
@@ -511,6 +614,25 @@ class CatalogController extends Controller
         }
 
         DB::transaction(function () use ($data, $orderedIds): void {
+            if ($data['type'] === 'discipline') {
+                $siblingIds = Discipline::query()
+                    ->orderBy('sort_order')
+                    ->orderBy('id')
+                    ->pluck('id')
+                    ->map(fn (int $id) => (int) $id)
+                    ->values();
+
+                $this->assertOrderedIdsMatchSiblings($orderedIds, $siblingIds);
+
+                $orderedIds->values()->each(function (int $id, int $index): void {
+                    Discipline::query()->whereKey($id)->update([
+                        'sort_order' => ($index + 1) * self::SORT_STEP,
+                    ]);
+                });
+
+                return;
+            }
+
             if ($data['type'] === 'category') {
                 $disciplineId = isset($data['discipline_id']) ? (int) $data['discipline_id'] : 0;
 
@@ -876,32 +998,49 @@ class CatalogController extends Controller
         }
     }
 
-    private function convertParentToContainer(Category $category, ?Subcategory $parent): void
+    private function assertParentCanBecomeContainer(Category $category, ?Subcategory $parent, bool $forceConvert): void
+    {
+        if (! $this->parentHasParameters($category, $parent)) {
+            return;
+        }
+
+        if (! $forceConvert) {
+            throw ValidationException::withMessages([
+                'parent_subcategory_id' => __('messages.catalog_child_conversion_requires_confirm'),
+            ]);
+        }
+
+        $this->clearParentParameters($category, $parent);
+    }
+
+    private function parentHasParameters(Category $category, ?Subcategory $parent): bool
+    {
+        if ($parent === null) {
+            return LabParameter::query()
+                ->where('category_id', $category->id)
+                ->whereNull('subcategory_id')
+                ->exists();
+        }
+
+        return LabParameter::query()
+            ->where('subcategory_id', $parent->id)
+            ->exists();
+    }
+
+    private function clearParentParameters(Category $category, ?Subcategory $parent): void
     {
         if ($parent === null) {
             LabParameter::query()
                 ->where('category_id', $category->id)
                 ->whereNull('subcategory_id')
-                ->where(function ($query) {
-                    $query->where('is_active', true)->orWhere('is_visible', true);
-                })
-                ->update([
-                    'is_active' => false,
-                    'is_visible' => false,
-                ]);
+                ->delete();
 
             return;
         }
 
         LabParameter::query()
             ->where('subcategory_id', $parent->id)
-            ->where(function ($query) {
-                $query->where('is_active', true)->orWhere('is_visible', true);
-            })
-            ->update([
-                'is_active' => false,
-                'is_visible' => false,
-            ]);
+            ->delete();
     }
 
     private function assertCanAttachParameter(Category $category, ?Subcategory $subcategory): void

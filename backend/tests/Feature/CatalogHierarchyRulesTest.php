@@ -53,7 +53,7 @@ class CatalogHierarchyRulesTest extends TestCase
         $response = $this->post(route('catalog.subcategories.store'), [
             'category_id' => $category->id,
             'name' => 'Hemoglobine',
-            'sort_order' => 10,
+            'force_convert_parent' => 1,
         ]);
 
         $response->assertRedirect();
@@ -63,10 +63,8 @@ class CatalogHierarchyRulesTest extends TestCase
             'name' => 'Hemoglobine',
         ]);
 
-        $this->assertDatabaseHas('lab_parameters', [
+        $this->assertDatabaseMissing('lab_parameters', [
             'id' => $parameter->id,
-            'is_active' => 0,
-            'is_visible' => 0,
         ]);
     }
 
@@ -87,7 +85,7 @@ class CatalogHierarchyRulesTest extends TestCase
             'category_id' => $category->id,
             'parent_subcategory_id' => $parentSubcategory->id,
             'name' => 'Plasmodium falciparum',
-            'sort_order' => 10,
+            'force_convert_parent' => 1,
         ]);
 
         $response->assertRedirect();
@@ -99,11 +97,24 @@ class CatalogHierarchyRulesTest extends TestCase
             'depth' => 2,
         ]);
 
-        $this->assertDatabaseHas('lab_parameters', [
+        $this->assertDatabaseMissing('lab_parameters', [
             'id' => $parameter->id,
-            'is_active' => 0,
-            'is_visible' => 0,
         ]);
+    }
+
+    public function test_adding_subanalysis_requires_confirmation_when_parent_has_values(): void
+    {
+        $discipline = $this->makeDiscipline('hema-confirm');
+        $category = $this->makeCategory($discipline, 'nfs-confirm');
+        $this->makeParameter(discipline: $discipline, category: $category, name: 'NFS', subcategory: null);
+
+        $response = $this->post(route('catalog.subcategories.store'), [
+            'category_id' => $category->id,
+            'name' => 'Plaquettes',
+        ]);
+
+        $response->assertSessionHasErrors('parent_subcategory_id');
+        $this->assertDatabaseCount('subcategories', 0);
     }
 
     public function test_analysis_can_receive_direct_value_again_after_all_children_removed(): void
@@ -191,6 +202,22 @@ class CatalogHierarchyRulesTest extends TestCase
         $this->assertSame(10, (int) Category::query()->findOrFail($third->id)->sort_order);
         $this->assertSame(20, (int) Category::query()->findOrFail($first->id)->sort_order);
         $this->assertSame(30, (int) Category::query()->findOrFail($second->id)->sort_order);
+    }
+
+    public function test_disciplines_can_be_reordered_globally(): void
+    {
+        $first = $this->makeDiscipline('reorder-disc-a');
+        $second = $this->makeDiscipline('reorder-disc-b');
+        $third = $this->makeDiscipline('reorder-disc-c');
+
+        $this->postJson(route('catalog.reorder'), [
+            'type' => 'discipline',
+            'ordered_ids' => [$third->id, $first->id, $second->id],
+        ])->assertOk();
+
+        $this->assertSame(10, (int) Discipline::query()->findOrFail($third->id)->sort_order);
+        $this->assertSame(20, (int) Discipline::query()->findOrFail($first->id)->sort_order);
+        $this->assertSame(30, (int) Discipline::query()->findOrFail($second->id)->sort_order);
     }
 
     private function makeDiscipline(string $seed): Discipline
