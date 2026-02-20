@@ -615,6 +615,11 @@ li.is-dragging > details > .lms-tree-node {
     width: 48%;
 }
 
+.lms-report-row-category td {
+    background: #f3f4f6;
+    color: #111827;
+}
+
 .lms-report-row-level-0 td:first-child {
     font-weight: 800;
     font-size: 0.99rem;
@@ -640,24 +645,8 @@ li.is-dragging > details > .lms-tree-node {
     font-weight: 500;
 }
 
-.lms-report-indent-0 {
-    padding-left: 0.4rem;
-}
-
-.lms-report-indent-1 {
-    padding-left: 1.1rem;
-}
-
-.lms-report-indent-2 {
-    padding-left: 1.8rem;
-}
-
-.lms-report-indent-3 {
-    padding-left: 2.45rem;
-}
-
-.lms-report-indent-4 {
-    padding-left: 3.1rem;
+.lms-report-indented {
+    white-space: normal;
 }
 
 .lms-report-result-cell {

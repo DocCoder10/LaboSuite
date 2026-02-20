@@ -1,6 +1,8 @@
 @php
     $showUnitColumn = (bool) ($layout['show_unit_column'] ?? false);
     $highlightAbnormal = (bool) ($layout['highlight_abnormal'] ?? true);
+    $indentBaseMm = 1;
+    $indentStepMm = 8;
     $analysisDate = optional($analysis->analysis_date)->format('d/m/Y');
     $patientSex = $analysis->patient?->sex;
     $patientSexLabel = match ($patientSex) {
@@ -11,6 +13,8 @@
     };
     $logoSrc = trim((string) ($identity['logo_url'] ?? ($identity['logo_path'] ?? '')));
     $normalizeLabel = static fn (?string $value): string => mb_strtolower(trim((string) $value));
+    $indentLevel = static fn (int $level): int => max(0, $level);
+    $indentStyle = static fn (int $level) => 'padding-left: '.($indentBaseMm + ($indentLevel($level) * $indentStepMm)).'mm;';
 @endphp
 
 <article class="lms-card lms-report">
@@ -71,7 +75,7 @@
             <tbody>
                 @foreach ($groupedResults as $discipline)
                     <tr class="lms-report-row lms-report-row-level-0">
-                        <td class="lms-report-analysis-cell lms-report-indent-0">{{ $discipline['label'] }}</td>
+                        <td class="lms-report-analysis-cell lms-report-indented" style="{{ $indentStyle(0) }}">{{ $discipline['label'] }}</td>
                         <td></td>
                         @if ($showUnitColumn)
                             <td></td>
@@ -97,8 +101,8 @@
                                 }
                             }
                         @endphp
-                        <tr class="lms-report-row lms-report-row-level-1 {{ $categoryMergeEnabled && ($categoryMergeRow['is_abnormal'] ?? false) && $highlightAbnormal ? 'is-abnormal' : '' }}">
-                            <td class="lms-report-analysis-cell lms-report-indent-1">{{ $category['label'] }}</td>
+                        <tr class="lms-report-row lms-report-row-level-1 lms-report-row-category {{ $categoryMergeEnabled && ($categoryMergeRow['is_abnormal'] ?? false) && $highlightAbnormal ? 'is-abnormal' : '' }}">
+                            <td class="lms-report-analysis-cell lms-report-indented" style="{{ $indentStyle(1) }}">{{ $category['label'] }}</td>
                             <td class="lms-report-result-cell">{{ $categoryMergeEnabled ? ($categoryMergeRow['result'] ?? '') : '' }}</td>
                             @if ($showUnitColumn)
                                 <td>{{ $categoryMergeEnabled ? ($categoryMergeRow['unit'] ?? '-') : '' }}</td>
@@ -128,10 +132,10 @@
 
                             @foreach ($lineageToRender as $lineageNode)
                                 @php
-                                    $displayLevel = 1 + (int) $lineageNode['depth'];
+                                    $displayLevel = max(2, 1 + (int) ($lineageNode['depth'] ?? 1));
                                 @endphp
                                 <tr class="lms-report-row lms-report-row-level-{{ $displayLevel }}">
-                                    <td class="lms-report-analysis-cell lms-report-indent-{{ $displayLevel }}">
+                                    <td class="lms-report-analysis-cell lms-report-indented" style="{{ $indentStyle($displayLevel) }}">
                                         {{ $lineageNode['label'] }}
                                     </td>
                                     <td></td>
@@ -144,10 +148,10 @@
 
                             @if ($mergeLeafIntoLineage && $singleRow !== null && is_array($lastLineage))
                                 @php
-                                    $leafLevel = 1 + (int) ($lastLineage['depth'] ?? 1);
+                                    $leafLevel = max(2, 1 + (int) ($lastLineage['depth'] ?? 1));
                                 @endphp
                                 <tr class="lms-report-row lms-report-row-leaf {{ $singleRow['is_abnormal'] && $highlightAbnormal ? 'is-abnormal' : '' }}">
-                                    <td class="lms-report-analysis-cell lms-report-indent-{{ $leafLevel }}">
+                                    <td class="lms-report-analysis-cell lms-report-indented" style="{{ $indentStyle($leafLevel) }}">
                                         {{ $lastLineage['label'] }}
                                     </td>
                                     <td class="lms-report-result-cell">{{ $singleRow['result'] }}</td>
@@ -159,10 +163,10 @@
                             @else
                                 @foreach ($rows as $row)
                                     @php
-                                        $parameterLevel = 2 + count($lineage);
+                                        $parameterLevel = max(2, 2 + count($lineage));
                                     @endphp
                                     <tr class="lms-report-row lms-report-row-leaf {{ $row['is_abnormal'] && $highlightAbnormal ? 'is-abnormal' : '' }}">
-                                        <td class="lms-report-analysis-cell lms-report-indent-{{ $parameterLevel }}">
+                                        <td class="lms-report-analysis-cell lms-report-indented" style="{{ $indentStyle($parameterLevel) }}">
                                             {{ $row['parameter'] }}
                                         </td>
                                         <td class="lms-report-result-cell">{{ $row['result'] }}</td>
