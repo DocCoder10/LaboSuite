@@ -24,6 +24,7 @@ class LabParameter extends Model
         'normal_max',
         'normal_text',
         'options',
+        'default_value',
         'abnormal_style',
         'sort_order',
         'is_visible',

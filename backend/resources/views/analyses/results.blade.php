@@ -64,10 +64,13 @@
                                                         @if ($row['value_type'] === 'number')
                                                             <input type="number" step="any" name="results[{{ $row['id'] }}]" value="{{ old('results.'.$row['id']) }}" required>
                                                         @elseif ($row['value_type'] === 'list')
+                                                            @php
+                                                                $selectedOption = old('results.'.$row['id'], $row['default_value'] ?? '');
+                                                            @endphp
                                                             <select name="results[{{ $row['id'] }}]" required>
                                                                 <option value="">-</option>
                                                                 @foreach ($row['options'] as $option)
-                                                                    <option value="{{ $option }}" @selected(old('results.'.$row['id']) === $option)>{{ $option }}</option>
+                                                                    <option value="{{ $option }}" @selected($selectedOption === $option)>{{ $option }}</option>
                                                                 @endforeach
                                                             </select>
                                                         @else

@@ -292,9 +292,11 @@ class AnalysisController extends Controller
             ->with([
                 'categories' => fn ($query) => $query
                     ->where('is_active', true)
-                    ->orderBy('sort_order'),
+                    ->orderBy('sort_order')
+                    ->orderBy('id'),
             ])
             ->orderBy('sort_order')
+            ->orderBy('id')
             ->get();
     }
 
@@ -329,16 +331,18 @@ class AnalysisController extends Controller
                 'discipline',
                 'subcategories' => fn ($query) => $query
                     ->where('is_active', true)
-                    ->orderBy('sort_order'),
+                    ->orderBy('sort_order')
+                    ->orderBy('id'),
                 'parameters' => fn ($query) => $query
                     ->where('is_active', true)
                     ->where('is_visible', true)
                     ->with('subcategory')
-                    ->orderBy('sort_order'),
+                    ->orderBy('sort_order')
+                    ->orderBy('id'),
             ])
             ->orderBy('discipline_id')
             ->orderBy('sort_order')
-            ->orderBy('name')
+            ->orderBy('id')
             ->get();
 
         $groups = [];
@@ -383,6 +387,7 @@ class AnalysisController extends Controller
                     'label' => $parameter->label($locale),
                     'value_type' => $parameter->value_type,
                     'options' => is_array($parameter->options) ? $parameter->options : [],
+                    'default_value' => $parameter->default_value,
                     'unit' => $parameter->unit,
                     'reference' => $parameter->referenceRange(),
                 ];

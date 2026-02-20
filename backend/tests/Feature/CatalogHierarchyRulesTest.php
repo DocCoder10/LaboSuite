@@ -135,6 +135,64 @@ class CatalogHierarchyRulesTest extends TestCase
         ]);
     }
 
+    public function test_list_parameter_accepts_matching_default_option(): void
+    {
+        $discipline = $this->makeDiscipline('micro');
+        $category = $this->makeCategory($discipline, 'uroculture');
+
+        $response = $this->post(route('catalog.parameters.store'), [
+            'category_id' => $category->id,
+            'name' => 'Culture',
+            'value_type' => 'list',
+            'options_csv' => 'NEGATIF, POSITIF',
+            'default_option_value' => 'NEGATIF',
+        ]);
+
+        $response->assertRedirect();
+
+        $this->assertDatabaseHas('lab_parameters', [
+            'category_id' => $category->id,
+            'subcategory_id' => null,
+            'name' => 'Culture',
+            'value_type' => 'list',
+            'default_value' => 'NEGATIF',
+        ]);
+    }
+
+    public function test_list_parameter_rejects_default_option_outside_choices(): void
+    {
+        $discipline = $this->makeDiscipline('micro-2');
+        $category = $this->makeCategory($discipline, 'coproculture');
+
+        $response = $this->post(route('catalog.parameters.store'), [
+            'category_id' => $category->id,
+            'name' => 'Culture',
+            'value_type' => 'list',
+            'options_csv' => 'NEGATIF, POSITIF',
+            'default_option_value' => 'INCONNU',
+        ]);
+
+        $response->assertSessionHasErrors('default_option_value');
+    }
+
+    public function test_categories_can_be_reordered_inside_same_discipline(): void
+    {
+        $discipline = $this->makeDiscipline('reorder-cat');
+        $first = $this->makeCategory($discipline, 'alpha');
+        $second = $this->makeCategory($discipline, 'beta');
+        $third = $this->makeCategory($discipline, 'gamma');
+
+        $this->postJson(route('catalog.reorder'), [
+            'type' => 'category',
+            'discipline_id' => $discipline->id,
+            'ordered_ids' => [$third->id, $first->id, $second->id],
+        ])->assertOk();
+
+        $this->assertSame(10, (int) Category::query()->findOrFail($third->id)->sort_order);
+        $this->assertSame(20, (int) Category::query()->findOrFail($first->id)->sort_order);
+        $this->assertSame(30, (int) Category::query()->findOrFail($second->id)->sort_order);
+    }
+
     private function makeDiscipline(string $seed): Discipline
     {
         return Discipline::query()->create([

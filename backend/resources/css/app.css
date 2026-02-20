@@ -239,6 +239,31 @@ body.lms-body {
     white-space: nowrap;
 }
 
+.lms-tree-drag-handle {
+    margin-left: auto;
+    font-size: 0.95rem;
+    line-height: 1;
+    letter-spacing: -0.08rem;
+    color: #334155;
+    padding: 0 0.2rem;
+    border-radius: 6px;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+}
+
+.lms-tree-drag-handle:hover {
+    background: rgba(148, 163, 184, 0.2);
+}
+
+.lms-tree-node[data-drag-enabled='1']:active .lms-tree-drag-handle {
+    cursor: grabbing;
+}
+
+li.is-dragging > details > .lms-tree-node {
+    opacity: 0.58;
+}
+
 .lms-tree-leaf {
     padding-left: 1.4rem;
     position: relative;
@@ -331,6 +356,12 @@ body.lms-body {
     align-items: center;
     gap: 0.45rem;
     font-size: 0.88rem;
+}
+
+.lms-type-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
 }
 
 .lms-btn {

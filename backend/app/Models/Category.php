@@ -35,17 +35,22 @@ class Category extends Model
     {
         return $this->hasMany(Subcategory::class)
             ->whereNull('parent_subcategory_id')
-            ->orderBy('sort_order');
+            ->orderBy('sort_order')
+            ->orderBy('id');
     }
 
     public function allSubcategories(): HasMany
     {
-        return $this->hasMany(Subcategory::class)->orderBy('sort_order');
+        return $this->hasMany(Subcategory::class)
+            ->orderBy('sort_order')
+            ->orderBy('id');
     }
 
     public function parameters(): HasMany
     {
-        return $this->hasMany(LabParameter::class)->orderBy('sort_order');
+        return $this->hasMany(LabParameter::class)
+            ->orderBy('sort_order')
+            ->orderBy('id');
     }
 
     public function analyses(): BelongsToMany

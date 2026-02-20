@@ -8,6 +8,7 @@
         <summary
             class="lms-tree-node lms-tree-summary"
             data-node-type="subcategory"
+            data-drag-enabled="1"
             data-id="{{ $subcategory->id }}"
             data-category-id="{{ $category->id }}"
             data-parent-id="{{ $subcategory->parent_subcategory_id ?? $category->id }}"
@@ -19,9 +20,11 @@
             data-depth="{{ $depth }}"
             data-subcategory-depth="{{ $subcategory->depth }}"
             data-has-children="{{ $hasSubcategoryChildren ? 1 : 0 }}"
+            draggable="true"
         >
             <span class="lms-tree-arrow" aria-hidden="true"></span>
             <span class="lms-tree-label">{{ $subcategory->name }}</span>
+            <span class="lms-tree-drag-handle" data-drag-handle title="{{ __('messages.drag_to_reorder') }}" aria-label="{{ __('messages.drag_to_reorder') }}">⋮⋮</span>
         </summary>
 
         <ul class="lms-tree-children">
@@ -50,6 +53,7 @@
                         data-unit="{{ $parameter->unit ?? '' }}"
                         data-reference="{{ $reference }}"
                         data-options-csv="{{ $optionsCsv }}"
+                        data-default-value="{{ $parameter->default_value ?? '' }}"
                         data-depth="{{ $childDepth }}"
                         data-has-children="0"
                     >

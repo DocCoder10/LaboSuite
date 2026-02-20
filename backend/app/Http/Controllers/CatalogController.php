@@ -6,8 +6,11 @@ use App\Models\Category;
 use App\Models\Discipline;
 use App\Models\LabParameter;
 use App\Models\Subcategory;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -19,46 +22,48 @@ class CatalogController extends Controller
 
     private const MAX_SUBCATEGORY_DEPTH = 2;
 
+    private const SORT_STEP = 10;
+
     public function index(): View
     {
         $disciplines = Discipline::query()
             ->with([
                 'categories' => fn ($categoryQuery) => $categoryQuery
                     ->orderBy('sort_order')
-                    ->orderBy('name')
+                    ->orderBy('id')
                     ->with([
                         'subcategories' => fn ($subcategoryQuery) => $subcategoryQuery
                             ->whereNull('parent_subcategory_id')
                             ->orderBy('sort_order')
-                            ->orderBy('name')
+                            ->orderBy('id')
                             ->with([
                                 'children' => fn ($childQuery) => $childQuery
                                     ->orderBy('sort_order')
-                                    ->orderBy('name')
+                                    ->orderBy('id')
                                     ->with([
                                         'parameters' => fn ($parameterQuery) => $parameterQuery
                                             ->orderBy('sort_order')
-                                            ->orderBy('name'),
+                                            ->orderBy('id'),
                                     ]),
                                 'parameters' => fn ($parameterQuery) => $parameterQuery
                                     ->orderBy('sort_order')
-                                    ->orderBy('name'),
+                                    ->orderBy('id'),
                             ]),
                         'parameters' => fn ($parameterQuery) => $parameterQuery
                             ->whereNull('subcategory_id')
                             ->orderBy('sort_order')
-                            ->orderBy('name'),
+                            ->orderBy('id'),
                     ]),
             ])
             ->orderBy('sort_order')
-            ->orderBy('name')
+            ->orderBy('id')
             ->get();
 
         $categories = Category::query()
             ->with('discipline')
             ->orderBy('discipline_id')
             ->orderBy('sort_order')
-            ->orderBy('name')
+            ->orderBy('id')
             ->get();
 
         $subcategories = Subcategory::query()
@@ -66,7 +71,7 @@ class CatalogController extends Controller
             ->orderBy('category_id')
             ->orderBy('depth')
             ->orderBy('sort_order')
-            ->orderBy('name')
+            ->orderBy('id')
             ->get();
 
         return view('catalog.index', [
@@ -80,7 +85,6 @@ class CatalogController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
-            'sort_order' => ['nullable', 'integer', 'min:0'],
         ]);
 
         $name = trim($data['name']);
@@ -94,7 +98,7 @@ class CatalogController extends Controller
             ),
             'name' => $name,
             'labels' => $this->buildLabels($name),
-            'sort_order' => $data['sort_order'] ?? 0,
+            'sort_order' => $this->nextSortOrder(Discipline::query()),
             'is_active' => true,
         ]);
 
@@ -105,7 +109,6 @@ class CatalogController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
-            'sort_order' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
         ]);
 
@@ -115,7 +118,6 @@ class CatalogController extends Controller
         $discipline->update([
             'name' => $name,
             'labels' => $this->buildLabels($name),
-            'sort_order' => $data['sort_order'] ?? 0,
             'is_active' => $request->boolean('is_active'),
         ]);
 
@@ -140,7 +142,6 @@ class CatalogController extends Controller
         $data = $request->validate([
             'discipline_id' => ['required', 'exists:disciplines,id'],
             'name' => ['required', 'string', 'max:120'],
-            'sort_order' => ['nullable', 'integer', 'min:0'],
         ]);
 
         $name = trim($data['name']);
@@ -157,7 +158,9 @@ class CatalogController extends Controller
             ),
             'name' => $name,
             'labels' => $this->buildLabels($name),
-            'sort_order' => $data['sort_order'] ?? 0,
+            'sort_order' => $this->nextSortOrder(
+                Category::query()->where('discipline_id', $disciplineId)
+            ),
             'is_active' => true,
         ]);
 
@@ -169,7 +172,6 @@ class CatalogController extends Controller
         $data = $request->validate([
             'discipline_id' => ['required', 'exists:disciplines,id'],
             'name' => ['required', 'string', 'max:120'],
-            'sort_order' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
         ]);
 
@@ -179,12 +181,19 @@ class CatalogController extends Controller
         $this->assertUniqueCategoryName($disciplineId, $name, $category->id);
 
         $disciplineChanged = (int) $category->discipline_id !== $disciplineId;
+        $sortOrder = $disciplineChanged
+            ? $this->nextSortOrder(
+                Category::query()
+                    ->where('discipline_id', $disciplineId)
+                    ->whereKeyNot($category->id)
+            )
+            : (int) $category->sort_order;
 
         $category->update([
             'discipline_id' => $disciplineId,
             'name' => $name,
             'labels' => $this->buildLabels($name),
-            'sort_order' => $data['sort_order'] ?? 0,
+            'sort_order' => $sortOrder,
             'is_active' => $request->boolean('is_active'),
         ]);
 
@@ -218,7 +227,6 @@ class CatalogController extends Controller
             'category_id' => ['required', 'exists:categories,id'],
             'parent_subcategory_id' => ['nullable', 'integer', 'exists:subcategories,id'],
             'name' => ['required', 'string', 'max:120'],
-            'sort_order' => ['nullable', 'integer', 'min:0'],
         ]);
 
         $name = trim($data['name']);
@@ -251,7 +259,7 @@ class CatalogController extends Controller
             ),
             'name' => $name,
             'labels' => $this->buildLabels($name),
-            'sort_order' => $data['sort_order'] ?? 0,
+            'sort_order' => $this->nextSortOrder($this->subcategorySiblingQuery($category->id, $parent?->id)),
             'is_active' => true,
         ]);
 
@@ -264,7 +272,6 @@ class CatalogController extends Controller
             'category_id' => ['required', 'exists:categories,id'],
             'parent_subcategory_id' => ['nullable', 'integer', 'exists:subcategories,id'],
             'name' => ['required', 'string', 'max:120'],
-            'sort_order' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
         ]);
 
@@ -291,6 +298,7 @@ class CatalogController extends Controller
         }
 
         $categoryChanged = (int) $subcategory->category_id !== (int) $category->id;
+        $parentChanged = (int) ($subcategory->parent_subcategory_id ?? 0) !== (int) ($parent?->id ?? 0);
 
         if ($categoryChanged && $subcategory->children()->exists()) {
             throw ValidationException::withMessages([
@@ -302,13 +310,20 @@ class CatalogController extends Controller
         $this->assertUniqueSubcategoryName($category->id, $parent?->id, $name, $subcategory->id);
         $this->convertParentToContainer($category, $parent);
 
+        $sortOrder = ($categoryChanged || $parentChanged)
+            ? $this->nextSortOrder(
+                $this->subcategorySiblingQuery($category->id, $parent?->id)
+                    ->whereKeyNot($subcategory->id)
+            )
+            : (int) $subcategory->sort_order;
+
         $subcategory->update([
             'category_id' => (int) $category->id,
             'parent_subcategory_id' => $parent?->id,
             'depth' => $depth,
             'name' => $name,
             'labels' => $this->buildLabels($name),
-            'sort_order' => $data['sort_order'] ?? 0,
+            'sort_order' => $sortOrder,
             'is_active' => $request->boolean('is_active'),
         ]);
 
@@ -347,7 +362,7 @@ class CatalogController extends Controller
             'value_type' => ['required', Rule::in(['number', 'text', 'list'])],
             'reference' => ['nullable', 'string', 'max:255'],
             'options_csv' => ['nullable', 'string'],
-            'sort_order' => ['nullable', 'integer', 'min:0'],
+            'default_option_value' => ['nullable', 'string', 'max:255'],
         ]);
 
         $name = trim($data['name']);
@@ -361,6 +376,12 @@ class CatalogController extends Controller
         $this->assertNotSameAsParentName($subcategory?->name ?? $category->name, $name);
         $this->assertUniqueParameterName($category->id, $subcategory?->id, $name);
 
+        $options = $this->parseOptions($data['options_csv'] ?? null);
+        $defaultValue = $this->resolveDefaultOptionValue(
+            $data['value_type'],
+            $options,
+            $data['default_option_value'] ?? null
+        );
         [$normalMin, $normalMax, $normalText] = $this->extractReferenceFields($data['value_type'], $data['reference'] ?? null);
 
         LabParameter::query()->create([
@@ -379,12 +400,15 @@ class CatalogController extends Controller
             'normal_min' => $normalMin,
             'normal_max' => $normalMax,
             'normal_text' => $normalText,
-            'options' => $this->parseOptions($data['options_csv'] ?? null),
+            'options' => $options,
+            'default_value' => $defaultValue,
             'abnormal_style' => [
                 'font_weight' => '700',
                 'text_color' => '#b91c1c',
             ],
-            'sort_order' => $data['sort_order'] ?? 0,
+            'sort_order' => $this->nextSortOrder(
+                $this->parameterSiblingQuery($category->id, $subcategory?->id)
+            ),
             'is_visible' => true,
             'is_active' => true,
         ]);
@@ -402,7 +426,7 @@ class CatalogController extends Controller
             'value_type' => ['required', Rule::in(['number', 'text', 'list'])],
             'reference' => ['nullable', 'string', 'max:255'],
             'options_csv' => ['nullable', 'string'],
-            'sort_order' => ['nullable', 'integer', 'min:0'],
+            'default_option_value' => ['nullable', 'string', 'max:255'],
             'is_visible' => ['nullable', 'boolean'],
             'is_active' => ['nullable', 'boolean'],
         ]);
@@ -418,7 +442,23 @@ class CatalogController extends Controller
         $this->assertNotSameAsParentName($subcategory?->name ?? $category->name, $name);
         $this->assertUniqueParameterName($category->id, $subcategory?->id, $name, $parameter->id);
 
+        $parentChanged = (int) $parameter->category_id !== (int) $category->id
+            || (int) ($parameter->subcategory_id ?? 0) !== (int) ($subcategory?->id ?? 0);
+
+        $options = $this->parseOptions($data['options_csv'] ?? null);
+        $defaultValue = $this->resolveDefaultOptionValue(
+            $data['value_type'],
+            $options,
+            $data['default_option_value'] ?? null
+        );
         [$normalMin, $normalMax, $normalText] = $this->extractReferenceFields($data['value_type'], $data['reference'] ?? null);
+
+        $sortOrder = $parentChanged
+            ? $this->nextSortOrder(
+                $this->parameterSiblingQuery($category->id, $subcategory?->id)
+                    ->whereKeyNot($parameter->id)
+            )
+            : (int) $parameter->sort_order;
 
         $parameter->update([
             'discipline_id' => $category->discipline_id,
@@ -431,8 +471,9 @@ class CatalogController extends Controller
             'normal_min' => $normalMin,
             'normal_max' => $normalMax,
             'normal_text' => $normalText,
-            'options' => $this->parseOptions($data['options_csv'] ?? null),
-            'sort_order' => $data['sort_order'] ?? 0,
+            'options' => $options,
+            'default_value' => $defaultValue,
+            'sort_order' => $sortOrder,
             'is_visible' => $request->boolean('is_visible'),
             'is_active' => $request->boolean('is_active'),
         ]);
@@ -445,6 +486,97 @@ class CatalogController extends Controller
         $parameter->delete();
 
         return back()->with('status', __('messages.catalog_saved'));
+    }
+
+    public function reorder(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'type' => ['required', Rule::in(['category', 'subcategory'])],
+            'ordered_ids' => ['required', 'array', 'min:1'],
+            'ordered_ids.*' => ['integer'],
+            'discipline_id' => ['nullable', 'integer', 'exists:disciplines,id'],
+            'category_id' => ['nullable', 'integer', 'exists:categories,id'],
+            'parent_subcategory_id' => ['nullable', 'integer', 'exists:subcategories,id'],
+        ]);
+
+        $orderedIds = collect($data['ordered_ids'])
+            ->map(fn (mixed $value) => (int) $value)
+            ->unique()
+            ->values();
+
+        if ($orderedIds->count() !== count($data['ordered_ids'])) {
+            throw ValidationException::withMessages([
+                'ordered_ids' => __('messages.catalog_reorder_invalid_scope'),
+            ]);
+        }
+
+        DB::transaction(function () use ($data, $orderedIds): void {
+            if ($data['type'] === 'category') {
+                $disciplineId = isset($data['discipline_id']) ? (int) $data['discipline_id'] : 0;
+
+                if ($disciplineId <= 0) {
+                    throw ValidationException::withMessages([
+                        'discipline_id' => __('messages.catalog_reorder_invalid_scope'),
+                    ]);
+                }
+
+                $siblingIds = Category::query()
+                    ->where('discipline_id', $disciplineId)
+                    ->orderBy('sort_order')
+                    ->orderBy('id')
+                    ->pluck('id')
+                    ->map(fn (int $id) => (int) $id)
+                    ->values();
+
+                $this->assertOrderedIdsMatchSiblings($orderedIds, $siblingIds);
+
+                $orderedIds->values()->each(function (int $id, int $index): void {
+                    Category::query()->whereKey($id)->update([
+                        'sort_order' => ($index + 1) * self::SORT_STEP,
+                    ]);
+                });
+
+                return;
+            }
+
+            $categoryId = isset($data['category_id']) ? (int) $data['category_id'] : 0;
+            $parentId = isset($data['parent_subcategory_id']) ? (int) $data['parent_subcategory_id'] : null;
+
+            if ($categoryId <= 0) {
+                throw ValidationException::withMessages([
+                    'category_id' => __('messages.catalog_reorder_invalid_scope'),
+                ]);
+            }
+
+            if ($parentId !== null) {
+                $parent = Subcategory::query()->findOrFail($parentId);
+
+                if ((int) $parent->category_id !== $categoryId) {
+                    throw ValidationException::withMessages([
+                        'parent_subcategory_id' => __('messages.catalog_reorder_invalid_scope'),
+                    ]);
+                }
+            }
+
+            $siblingIds = $this->subcategorySiblingQuery($categoryId, $parentId)
+                ->orderBy('sort_order')
+                ->orderBy('id')
+                ->pluck('id')
+                ->map(fn (int $id) => (int) $id)
+                ->values();
+
+            $this->assertOrderedIdsMatchSiblings($orderedIds, $siblingIds);
+
+            $orderedIds->values()->each(function (int $id, int $index): void {
+                Subcategory::query()->whereKey($id)->update([
+                    'sort_order' => ($index + 1) * self::SORT_STEP,
+                ]);
+            });
+        });
+
+        return response()->json([
+            'status' => 'ok',
+        ]);
     }
 
     private function buildLabels(string $name): array
@@ -490,6 +622,75 @@ class CatalogController extends Controller
             ->all();
 
         return $options === [] ? null : $options;
+    }
+
+    private function resolveDefaultOptionValue(string $valueType, ?array $options, ?string $defaultValue): ?string
+    {
+        if ($valueType !== 'list') {
+            return null;
+        }
+
+        $value = $defaultValue !== null ? trim($defaultValue) : '';
+
+        if ($value === '') {
+            return null;
+        }
+
+        if (! is_array($options) || $options === []) {
+            throw ValidationException::withMessages([
+                'default_option_value' => __('messages.catalog_default_requires_options'),
+            ]);
+        }
+
+        if (! in_array($value, $options, true)) {
+            throw ValidationException::withMessages([
+                'default_option_value' => __('messages.catalog_default_must_match_option'),
+            ]);
+        }
+
+        return $value;
+    }
+
+    private function nextSortOrder($query): int
+    {
+        $max = (int) ($query->max('sort_order') ?? 0);
+
+        return $max + self::SORT_STEP;
+    }
+
+    private function subcategorySiblingQuery(int $categoryId, ?int $parentSubcategoryId)
+    {
+        $query = Subcategory::query()->where('category_id', $categoryId);
+
+        if ($parentSubcategoryId === null) {
+            return $query->whereNull('parent_subcategory_id');
+        }
+
+        return $query->where('parent_subcategory_id', $parentSubcategoryId);
+    }
+
+    private function parameterSiblingQuery(int $categoryId, ?int $subcategoryId)
+    {
+        $query = LabParameter::query()->where('category_id', $categoryId);
+
+        if ($subcategoryId === null) {
+            return $query->whereNull('subcategory_id');
+        }
+
+        return $query->where('subcategory_id', $subcategoryId);
+    }
+
+    private function assertOrderedIdsMatchSiblings(Collection $orderedIds, Collection $siblingIds): void
+    {
+        $mismatch = $orderedIds->count() !== $siblingIds->count()
+            || $orderedIds->diff($siblingIds)->isNotEmpty()
+            || $siblingIds->diff($orderedIds)->isNotEmpty();
+
+        if ($mismatch) {
+            throw ValidationException::withMessages([
+                'ordered_ids' => __('messages.catalog_reorder_invalid_scope'),
+            ]);
+        }
     }
 
     /**

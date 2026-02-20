@@ -28,6 +28,7 @@ Route::delete('/catalog/subcategories/{subcategory}', [CatalogController::class,
 Route::post('/catalog/parameters', [CatalogController::class, 'storeParameter'])->name('catalog.parameters.store');
 Route::put('/catalog/parameters/{parameter}', [CatalogController::class, 'updateParameter'])->name('catalog.parameters.update');
 Route::delete('/catalog/parameters/{parameter}', [CatalogController::class, 'destroyParameter'])->name('catalog.parameters.destroy');
+Route::post('/catalog/reorder', [CatalogController::class, 'reorder'])->name('catalog.reorder');
 
 Route::get('/settings', [SettingController::class, 'edit'])->name('settings.edit');
 Route::put('/settings', [SettingController::class, 'update'])->name('settings.update');

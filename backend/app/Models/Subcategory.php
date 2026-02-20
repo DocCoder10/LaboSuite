@@ -40,12 +40,16 @@ class Subcategory extends Model
 
     public function children(): HasMany
     {
-        return $this->hasMany(self::class, 'parent_subcategory_id')->orderBy('sort_order');
+        return $this->hasMany(self::class, 'parent_subcategory_id')
+            ->orderBy('sort_order')
+            ->orderBy('id');
     }
 
     public function parameters(): HasMany
     {
-        return $this->hasMany(LabParameter::class)->orderBy('sort_order');
+        return $this->hasMany(LabParameter::class)
+            ->orderBy('sort_order')
+            ->orderBy('id');
     }
 
     public function label(string $locale, string $fallback = 'en'): string

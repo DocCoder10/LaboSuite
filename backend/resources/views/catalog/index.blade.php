@@ -25,6 +25,8 @@
         data-route-parameter-store="{{ route('catalog.parameters.store') }}"
         data-route-parameter-update="{{ url('/catalog/parameters/__ID__') }}"
         data-route-parameter-delete="{{ url('/catalog/parameters/__ID__') }}"
+        data-route-reorder="{{ route('catalog.reorder') }}"
+        data-csrf-token="{{ csrf_token() }}"
     >
         <aside class="lms-card lms-stack lms-tree-panel">
             <h3>{{ __('messages.catalog_tree_title') }}</h3>
@@ -63,18 +65,12 @@
                                                 @php
                                                     $hasSubcategories = $category->subcategories->isNotEmpty();
                                                     $hasCategoryChildren = $category->parameters->isNotEmpty() || $hasSubcategories;
-                                                    $directParameter = $category->parameters->firstWhere('subcategory_id', null);
-                                                    $directReference = $directParameter && ($directParameter->normal_min !== null || $directParameter->normal_max !== null)
-                                                        ? trim((string) $directParameter->normal_min.' - '.(string) $directParameter->normal_max)
-                                                        : ($directParameter?->normal_text ?? '');
-                                                    $directOptionsCsv = $directParameter && is_array($directParameter->options)
-                                                        ? implode(', ', $directParameter->options)
-                                                        : '';
                                                 @endphp
                                                 <details class="lms-tree-branch lms-tree-level-category">
                                                     <summary
                                                         class="lms-tree-node lms-tree-summary"
                                                         data-node-type="category"
+                                                        data-drag-enabled="1"
                                                         data-id="{{ $category->id }}"
                                                         data-category-id="{{ $category->id }}"
                                                         data-parent-id="{{ $discipline->id }}"
@@ -85,18 +81,11 @@
                                                         data-depth="2"
                                                         data-has-children="{{ $hasCategoryChildren ? 1 : 0 }}"
                                                         data-has-subcategories="{{ $hasSubcategories ? 1 : 0 }}"
-                                                        data-direct-parameter-id="{{ $directParameter?->id ?? '' }}"
-                                                        data-direct-parameter-name="{{ $directParameter?->name ?? '' }}"
-                                                        data-direct-parameter-sort-order="{{ $directParameter?->sort_order ?? 0 }}"
-                                                        data-direct-parameter-active="{{ $directParameter?->is_active ? 1 : 0 }}"
-                                                        data-direct-parameter-visible="{{ $directParameter?->is_visible ? 1 : 0 }}"
-                                                        data-direct-parameter-value-type="{{ $directParameter?->value_type ?? 'number' }}"
-                                                        data-direct-parameter-unit="{{ $directParameter?->unit ?? '' }}"
-                                                        data-direct-parameter-reference="{{ $directReference }}"
-                                                        data-direct-parameter-options-csv="{{ $directOptionsCsv }}"
+                                                        draggable="true"
                                                     >
                                                         <span class="lms-tree-arrow" aria-hidden="true"></span>
                                                         <span class="lms-tree-label">{{ $category->name }}</span>
+                                                        <span class="lms-tree-drag-handle" data-drag-handle title="{{ __('messages.drag_to_reorder') }}" aria-label="{{ __('messages.drag_to_reorder') }}">⋮⋮</span>
                                                     </summary>
 
                                                     <ul class="lms-tree-children">
@@ -125,6 +114,7 @@
                                                                     data-unit="{{ $parameter->unit ?? '' }}"
                                                                     data-reference="{{ $reference }}"
                                                                     data-options-csv="{{ $optionsCsv }}"
+                                                                    data-default-value="{{ $parameter->default_value ?? '' }}"
                                                                     data-depth="3"
                                                                     data-has-children="0"
                                                                 >
@@ -164,7 +154,6 @@
                         @csrf
                         @method('PUT')
                         <label class="lms-field"><span>{{ __('messages.name') }}</span><input name="name" data-editor-input="discipline-name" required></label>
-                        <label class="lms-field"><span>{{ __('messages.sort_order') }}</span><input type="number" name="sort_order" min="0" data-editor-input="discipline-sort"></label>
                         <label class="lms-checkbox">
                             <input type="hidden" name="is_active" value="0">
                             <input type="checkbox" name="is_active" value="1" data-editor-input="discipline-active">
@@ -196,8 +185,7 @@
                                 @endforeach
                             </select>
                         </label>
-                        <label class="lms-field"><span>{{ __('messages.name') }}</span><input name="name" data-editor-input="category-name" required></label>
-                        <label class="lms-field"><span>{{ __('messages.sort_order') }}</span><input type="number" name="sort_order" min="0" data-editor-input="category-sort"></label>
+                        <label class="lms-field"><span>{{ __('messages.analysis') }}</span><input name="name" data-editor-input="category-name" required></label>
                         <label class="lms-checkbox">
                             <input type="hidden" name="is_active" value="0">
                             <input type="checkbox" name="is_active" value="1" data-editor-input="category-active">
@@ -208,51 +196,6 @@
                             <button class="lms-btn lms-btn-soft" type="button" data-editor-cancel="category">{{ __('messages.cancel_changes') }}</button>
                         </div>
                     </form>
-
-                    <div class="lms-stack" data-category-direct-parameter-area>
-                        <h5>{{ __('messages.catalog_simple_analysis_values') }}</h5>
-                        <p class="lms-muted" data-category-direct-help>{{ __('messages.catalog_simple_analysis_help') }}</p>
-                        <p class="lms-muted" data-category-container-hint hidden>{{ __('messages.catalog_container_values_hint') }}</p>
-
-                        <form method="POST" action="{{ route('catalog.parameters.store') }}" data-editor-form="category-direct-parameter" class="lms-stack">
-                            @csrf
-                            <input type="hidden" name="_method" value="PUT" data-editor-input="category-parameter-method" disabled>
-                            <input type="hidden" name="category_id" data-editor-input="category-parameter-category-id">
-                            <input type="hidden" name="subcategory_id" value="">
-                            <label class="lms-field"><span>{{ __('messages.name') }}</span><input name="name" data-editor-input="category-parameter-name" required></label>
-                            <label class="lms-field">
-                                <span>{{ __('messages.value_type') }}</span>
-                                <select name="value_type" data-editor-input="category-parameter-value-type" required>
-                                    <option value="number">{{ __('messages.value_type_number') }}</option>
-                                    <option value="text">{{ __('messages.value_type_text') }}</option>
-                                    <option value="list">{{ __('messages.value_type_list') }}</option>
-                                </select>
-                            </label>
-                            <label class="lms-field"><span>{{ __('messages.unit') }}</span><input name="unit" data-editor-input="category-parameter-unit"></label>
-                            <label class="lms-field"><span>{{ __('messages.reference') }}</span><input name="reference" data-editor-input="category-parameter-reference" placeholder="12 - 16"></label>
-                            <label class="lms-field"><span>{{ __('messages.options_csv') }}</span><input name="options_csv" data-editor-input="category-parameter-options" placeholder="NEGATIF, POSITIF"></label>
-                            <label class="lms-field"><span>{{ __('messages.sort_order') }}</span><input type="number" name="sort_order" min="0" data-editor-input="category-parameter-sort"></label>
-                            <label class="lms-checkbox">
-                                <input type="hidden" name="is_visible" value="0">
-                                <input type="checkbox" name="is_visible" value="1" data-editor-input="category-parameter-visible">
-                                <span>{{ __('messages.visible') }}</span>
-                            </label>
-                            <label class="lms-checkbox">
-                                <input type="hidden" name="is_active" value="0">
-                                <input type="checkbox" name="is_active" value="1" data-editor-input="category-parameter-active">
-                                <span>{{ __('messages.active') }}</span>
-                            </label>
-                            <div class="lms-inline-actions">
-                                <button class="lms-btn" type="submit">{{ __('messages.save_direct_value') }}</button>
-                            </div>
-                        </form>
-
-                        <form method="POST" data-editor-form="category-direct-parameter-delete" data-delete-form hidden>
-                            @csrf
-                            @method('DELETE')
-                            <button class="lms-btn lms-btn-danger" type="submit">{{ __('messages.delete_direct_value') }}</button>
-                        </form>
-                    </div>
 
                     <form method="POST" data-editor-form="category-delete" data-delete-form>
                         @csrf
@@ -289,8 +232,7 @@
                                 @endforeach
                             </select>
                         </label>
-                        <label class="lms-field"><span>{{ __('messages.name') }}</span><input name="name" data-editor-input="subcategory-name" required></label>
-                        <label class="lms-field"><span>{{ __('messages.sort_order') }}</span><input type="number" name="sort_order" min="0" data-editor-input="subcategory-sort"></label>
+                        <label class="lms-field"><span>{{ __('messages.subcategory') }}</span><input name="name" data-editor-input="subcategory-name" required></label>
                         <label class="lms-checkbox">
                             <input type="hidden" name="is_active" value="0">
                             <input type="checkbox" name="is_active" value="1" data-editor-input="subcategory-active">
@@ -333,19 +275,36 @@
                                 @endforeach
                             </select>
                         </label>
-                        <label class="lms-field"><span>{{ __('messages.name') }}</span><input name="name" data-editor-input="parameter-name" required></label>
-                        <label class="lms-field">
+                        <label class="lms-field"><span>{{ __('messages.subcategory') }}</span><input name="name" data-editor-input="parameter-name" required></label>
+                        <input type="hidden" name="value_type" value="number" data-editor-input="parameter-value-type" data-value-type-hidden>
+                        <div class="lms-field">
                             <span>{{ __('messages.value_type') }}</span>
-                            <select name="value_type" data-editor-input="parameter-value-type" required>
-                                <option value="number">{{ __('messages.value_type_number') }}</option>
-                                <option value="text">{{ __('messages.value_type_text') }}</option>
-                                <option value="list">{{ __('messages.value_type_list') }}</option>
-                            </select>
+                            <div class="lms-type-picker" data-value-type-form>
+                                <label class="lms-checkbox">
+                                    <input type="checkbox" value="number" data-value-type-choice>
+                                    <span>{{ __('messages.value_type_number') }}</span>
+                                </label>
+                                <label class="lms-checkbox">
+                                    <input type="checkbox" value="text" data-value-type-choice>
+                                    <span>{{ __('messages.value_type_text') }}</span>
+                                </label>
+                                <label class="lms-checkbox">
+                                    <input type="checkbox" value="list" data-value-type-choice>
+                                    <span>{{ __('messages.value_type_list') }}</span>
+                                </label>
+                            </div>
+                        </div>
+                        <label class="lms-field" data-value-type-field="number"><span>{{ __('messages.unit') }}</span><input name="unit" data-editor-input="parameter-unit"></label>
+                        <label class="lms-field" data-value-type-field="number text"><span>{{ __('messages.reference') }}</span><input name="reference" data-editor-input="parameter-reference" placeholder="12 - 16"></label>
+                        <label class="lms-field" data-value-type-field="list"><span>{{ __('messages.options_csv') }}</span><input name="options_csv" data-editor-input="parameter-options" placeholder="NEGATIF, POSITIF"></label>
+                        <label class="lms-checkbox" data-value-type-field="list">
+                            <input type="checkbox" data-default-option-toggle data-editor-input="parameter-default-toggle">
+                            <span>{{ __('messages.default_option') }}</span>
                         </label>
-                        <label class="lms-field"><span>{{ __('messages.unit') }}</span><input name="unit" data-editor-input="parameter-unit"></label>
-                        <label class="lms-field"><span>{{ __('messages.reference') }}</span><input name="reference" data-editor-input="parameter-reference" placeholder="12 - 16"></label>
-                        <label class="lms-field"><span>{{ __('messages.options_csv') }}</span><input name="options_csv" data-editor-input="parameter-options" placeholder="NEGATIF, POSITIF"></label>
-                        <label class="lms-field"><span>{{ __('messages.sort_order') }}</span><input type="number" name="sort_order" min="0" data-editor-input="parameter-sort"></label>
+                        <label class="lms-field" data-value-type-field="list" data-default-option-wrap hidden>
+                            <span>{{ __('messages.default_option_value') }}</span>
+                            <input name="default_option_value" data-default-option-input data-editor-input="parameter-default-option">
+                        </label>
                         <label class="lms-checkbox">
                             <input type="hidden" name="is_visible" value="0">
                             <input type="checkbox" name="is_visible" value="1" data-editor-input="parameter-visible">
@@ -381,7 +340,6 @@
             <form method="POST" action="{{ route('catalog.disciplines.store') }}" class="lms-stack">
                 @csrf
                 <label class="lms-field"><span>{{ __('messages.name') }}</span><input name="name" required></label>
-                <label class="lms-field"><span>{{ __('messages.sort_order') }}</span><input type="number" name="sort_order" value="0" min="0"></label>
                 <div class="lms-inline-actions">
                     <button type="button" class="lms-btn lms-btn-soft" data-modal-close>{{ __('messages.close') }}</button>
                     <button class="lms-btn" type="submit">{{ __('messages.add_discipline') }}</button>
@@ -406,8 +364,7 @@
                         @endforeach
                     </select>
                 </label>
-                <label class="lms-field"><span>{{ __('messages.name') }}</span><input name="name" required></label>
-                <label class="lms-field"><span>{{ __('messages.sort_order') }}</span><input type="number" name="sort_order" value="0" min="0"></label>
+                <label class="lms-field"><span>{{ __('messages.analysis') }}</span><input name="name" required></label>
                 <div class="lms-inline-actions">
                     <button type="button" class="lms-btn lms-btn-soft" data-modal-close>{{ __('messages.close') }}</button>
                     <button class="lms-btn" type="submit">{{ __('messages.add_analysis') }}</button>
@@ -447,8 +404,7 @@
                         @endforeach
                     </select>
                 </label>
-                <label class="lms-field"><span>{{ __('messages.name') }}</span><input name="name" required></label>
-                <label class="lms-field"><span>{{ __('messages.sort_order') }}</span><input type="number" name="sort_order" value="0" min="0"></label>
+                <label class="lms-field"><span>{{ __('messages.subcategory') }}</span><input name="name" required></label>
                 <div class="lms-inline-actions">
                     <button type="button" class="lms-btn lms-btn-soft" data-modal-close>{{ __('messages.close') }}</button>
                     <button class="lms-btn" type="submit">{{ __('messages.add_subcategory') }}</button>
@@ -484,19 +440,36 @@
                         @endforeach
                     </select>
                 </label>
-                <label class="lms-field"><span>{{ __('messages.name') }}</span><input name="name" required></label>
-                <label class="lms-field">
+                <label class="lms-field"><span>{{ __('messages.subcategory') }}</span><input name="name" required></label>
+                <input type="hidden" name="value_type" value="number" data-value-type-hidden>
+                <div class="lms-field">
                     <span>{{ __('messages.value_type') }}</span>
-                    <select name="value_type" required>
-                        <option value="number">{{ __('messages.value_type_number') }}</option>
-                        <option value="text">{{ __('messages.value_type_text') }}</option>
-                        <option value="list">{{ __('messages.value_type_list') }}</option>
-                    </select>
+                    <div class="lms-type-picker" data-value-type-form>
+                        <label class="lms-checkbox">
+                            <input type="checkbox" value="number" data-value-type-choice>
+                            <span>{{ __('messages.value_type_number') }}</span>
+                        </label>
+                        <label class="lms-checkbox">
+                            <input type="checkbox" value="text" data-value-type-choice>
+                            <span>{{ __('messages.value_type_text') }}</span>
+                        </label>
+                        <label class="lms-checkbox">
+                            <input type="checkbox" value="list" data-value-type-choice>
+                            <span>{{ __('messages.value_type_list') }}</span>
+                        </label>
+                    </div>
+                </div>
+                <label class="lms-field" data-value-type-field="number"><span>{{ __('messages.unit') }}</span><input name="unit"></label>
+                <label class="lms-field" data-value-type-field="number text"><span>{{ __('messages.reference') }}</span><input name="reference" placeholder="12 - 16"></label>
+                <label class="lms-field" data-value-type-field="list"><span>{{ __('messages.options_csv') }}</span><input name="options_csv" placeholder="NEGATIF, POSITIF"></label>
+                <label class="lms-checkbox" data-value-type-field="list">
+                    <input type="checkbox" data-default-option-toggle>
+                    <span>{{ __('messages.default_option') }}</span>
                 </label>
-                <label class="lms-field"><span>{{ __('messages.unit') }}</span><input name="unit"></label>
-                <label class="lms-field"><span>{{ __('messages.reference') }}</span><input name="reference" placeholder="12 - 16"></label>
-                <label class="lms-field"><span>{{ __('messages.options_csv') }}</span><input name="options_csv" placeholder="NEGATIF, POSITIF"></label>
-                <label class="lms-field"><span>{{ __('messages.sort_order') }}</span><input type="number" name="sort_order" value="0" min="0"></label>
+                <label class="lms-field" data-value-type-field="list" data-default-option-wrap hidden>
+                    <span>{{ __('messages.default_option_value') }}</span>
+                    <input name="default_option_value" data-default-option-input>
+                </label>
                 <div class="lms-inline-actions">
                     <button type="button" class="lms-btn lms-btn-soft" data-modal-close>{{ __('messages.close') }}</button>
                     <button class="lms-btn" type="submit">{{ __('messages.add_sub_analysis') }}</button>
@@ -532,6 +505,7 @@
             const labels = {
                 confirmDelete: @json(__('messages.confirm_delete')),
                 confirmDeleteWithChildren: @json(__('messages.confirm_delete_with_children')),
+                reorderFailed: @json(__('messages.catalog_reorder_failed')),
             };
 
             const routeMap = {
@@ -544,6 +518,7 @@
                 parameterStore: editorRoot.dataset.routeParameterStore,
                 parameterUpdate: editorRoot.dataset.routeParameterUpdate,
                 parameterDelete: editorRoot.dataset.routeParameterDelete,
+                reorder: editorRoot.dataset.routeReorder,
             };
 
             const sections = {
@@ -561,7 +536,9 @@
 
             const nodeElements = Array.from(editorRoot.querySelectorAll('[data-node-type]'));
             const draftState = new Map();
+            const typeFormState = new WeakMap();
             let currentSelection = null;
+            let dragState = null;
 
             const fillRoute = (template, id) => template.replace('__ID__', String(id));
 
@@ -579,6 +556,123 @@
                 if (dialog?.open) {
                     dialog.close();
                 }
+            };
+
+            const getNodeElements = () => Array.from(editorRoot.querySelectorAll('[data-node-type]'));
+
+            const getSupportedTypes = (field) => {
+                const rawValue = field.dataset.valueTypeField ?? '';
+
+                return rawValue
+                    .split(' ')
+                    .map((value) => value.trim())
+                    .filter((value) => value !== '');
+            };
+
+            const initializeValueTypeForm = (form) => {
+                const hiddenInput = form.querySelector('[data-value-type-hidden]');
+                const typeChoices = Array.from(form.querySelectorAll('[data-value-type-choice]'));
+
+                if (!hiddenInput || typeChoices.length === 0) {
+                    return;
+                }
+
+                const typedFields = Array.from(form.querySelectorAll('[data-value-type-field]'));
+                const defaultToggle = form.querySelector('[data-default-option-toggle]');
+                const defaultWrap = form.querySelector('[data-default-option-wrap]');
+                const defaultInput = form.querySelector('[data-default-option-input]');
+                const validTypes = new Set(['number', 'text', 'list']);
+
+                const refresh = () => {
+                    let activeType = hiddenInput.value;
+
+                    if (!validTypes.has(activeType)) {
+                        activeType = 'number';
+                        hiddenInput.value = activeType;
+                    }
+
+                    typeChoices.forEach((choice) => {
+                        choice.checked = choice.value === activeType;
+                    });
+
+                    typedFields.forEach((field) => {
+                        const visible = getSupportedTypes(field).includes(activeType);
+                        field.hidden = !visible;
+
+                        field.querySelectorAll('input, select, textarea').forEach((input) => {
+                            if (input === hiddenInput || input.type === 'hidden') {
+                                return;
+                            }
+
+                            if (input === defaultToggle) {
+                                return;
+                            }
+
+                            input.disabled = !visible;
+                        });
+                    });
+
+                    if (!defaultToggle || !defaultWrap || !defaultInput) {
+                        return;
+                    }
+
+                    const optionsMode = activeType === 'list';
+                    defaultToggle.disabled = !optionsMode;
+
+                    if (!optionsMode) {
+                        defaultToggle.checked = false;
+                        defaultWrap.hidden = true;
+                        defaultInput.disabled = true;
+                        defaultInput.value = '';
+                        return;
+                    }
+
+                    defaultWrap.hidden = !defaultToggle.checked;
+                    defaultInput.disabled = !defaultToggle.checked;
+
+                    if (!defaultToggle.checked) {
+                        defaultInput.value = '';
+                    }
+                };
+
+                typeChoices.forEach((choice) => {
+                    choice.addEventListener('change', () => {
+                        if (choice.checked) {
+                            hiddenInput.value = choice.value;
+                            refresh();
+                            return;
+                        }
+
+                        if (hiddenInput.value === choice.value) {
+                            choice.checked = true;
+                        }
+                    });
+                });
+
+                if (defaultToggle) {
+                    defaultToggle.addEventListener('change', () => {
+                        refresh();
+                    });
+                }
+
+                typeFormState.set(form, { refresh });
+                refresh();
+            };
+
+            const refreshValueTypeForm = (form) => {
+                const state = typeFormState.get(form);
+
+                if (state) {
+                    state.refresh();
+                }
+            };
+
+            const refreshValueTypeFormsInSection = (section) => {
+                if (!section) {
+                    return;
+                }
+
+                section.querySelectorAll('form').forEach((form) => refreshValueTypeForm(form));
             };
 
             const syncSubcategoryOptions = (categorySelect, subcategorySelect) => {
@@ -638,7 +732,7 @@
             };
 
             const clearNodeHighlights = () => {
-                nodeElements.forEach((node) => {
+                getNodeElements().forEach((node) => {
                     node.classList.remove(
                         'is-selected',
                         'is-path-node',
@@ -750,6 +844,8 @@
 
                     input.value = state[key] ?? '';
                 });
+
+                refreshValueTypeFormsInSection(section);
             };
 
             const persistCurrentDraft = () => {
@@ -764,12 +860,12 @@
 
             const populateDisciplineSection = (node) => {
                 const section = sections.discipline;
+
                 if (!section) {
                     return;
                 }
 
                 section.querySelector('[data-editor-input="discipline-name"]').value = node.dataset.name ?? '';
-                section.querySelector('[data-editor-input="discipline-sort"]').value = node.dataset.sortOrder ?? 0;
                 section.querySelector('[data-editor-input="discipline-active"]').checked = (node.dataset.active ?? '0') === '1';
 
                 setFormAction('[data-editor-form="discipline-update"]', fillRoute(routeMap.disciplineUpdate, node.dataset.id));
@@ -778,86 +874,22 @@
 
             const populateCategorySection = (node) => {
                 const section = sections.category;
+
                 if (!section) {
                     return;
                 }
 
                 section.querySelector('[data-editor-input="category-discipline"]').value = node.dataset.parentId ?? '';
                 section.querySelector('[data-editor-input="category-name"]').value = node.dataset.name ?? '';
-                section.querySelector('[data-editor-input="category-sort"]').value = node.dataset.sortOrder ?? 0;
                 section.querySelector('[data-editor-input="category-active"]').checked = (node.dataset.active ?? '0') === '1';
 
                 setFormAction('[data-editor-form="category-update"]', fillRoute(routeMap.categoryUpdate, node.dataset.id));
                 setFormAction('[data-editor-form="category-delete"]', fillRoute(routeMap.categoryDelete, node.dataset.id));
-
-                const hasSubcategories = (node.dataset.hasSubcategories ?? '0') === '1';
-                const directArea = section.querySelector('[data-category-direct-parameter-area]');
-                const directHelp = section.querySelector('[data-category-direct-help]');
-                const containerHint = section.querySelector('[data-category-container-hint]');
-                const directForm = section.querySelector('[data-editor-form="category-direct-parameter"]');
-                const directDeleteForm = section.querySelector('[data-editor-form="category-direct-parameter-delete"]');
-
-                if (!directArea || !directHelp || !containerHint || !directForm || !directDeleteForm) {
-                    return;
-                }
-
-                const parameterId = node.dataset.directParameterId ?? '';
-                const hasDirectParameter = parameterId !== '';
-
-                const methodInput = section.querySelector('[data-editor-input="category-parameter-method"]');
-                const categoryIdInput = section.querySelector('[data-editor-input="category-parameter-category-id"]');
-                const nameInput = section.querySelector('[data-editor-input="category-parameter-name"]');
-                const valueTypeInput = section.querySelector('[data-editor-input="category-parameter-value-type"]');
-                const unitInput = section.querySelector('[data-editor-input="category-parameter-unit"]');
-                const referenceInput = section.querySelector('[data-editor-input="category-parameter-reference"]');
-                const optionsInput = section.querySelector('[data-editor-input="category-parameter-options"]');
-                const sortInput = section.querySelector('[data-editor-input="category-parameter-sort"]');
-                const visibleInput = section.querySelector('[data-editor-input="category-parameter-visible"]');
-                const activeInput = section.querySelector('[data-editor-input="category-parameter-active"]');
-
-                categoryIdInput.value = node.dataset.id ?? '';
-                nameInput.value = node.dataset.directParameterName ?? node.dataset.name ?? '';
-                valueTypeInput.value = node.dataset.directParameterValueType ?? 'number';
-                unitInput.value = node.dataset.directParameterUnit ?? '';
-                referenceInput.value = node.dataset.directParameterReference ?? '';
-                optionsInput.value = node.dataset.directParameterOptionsCsv ?? '';
-                sortInput.value = node.dataset.directParameterSortOrder ?? 0;
-                visibleInput.checked = hasDirectParameter
-                    ? (node.dataset.directParameterVisible ?? '0') === '1'
-                    : true;
-                activeInput.checked = hasDirectParameter
-                    ? (node.dataset.directParameterActive ?? '0') === '1'
-                    : true;
-
-                if (hasSubcategories) {
-                    directHelp.hidden = true;
-                    containerHint.hidden = false;
-                    directForm.hidden = true;
-                    directDeleteForm.hidden = true;
-                    return;
-                }
-
-                directHelp.hidden = false;
-                containerHint.hidden = true;
-                directForm.hidden = false;
-
-                if (hasDirectParameter) {
-                    methodInput.disabled = false;
-                    methodInput.value = 'PUT';
-                    directForm.setAttribute('action', fillRoute(routeMap.parameterUpdate, parameterId));
-                    directDeleteForm.hidden = false;
-                    setFormAction('[data-editor-form="category-direct-parameter-delete"]', fillRoute(routeMap.parameterDelete, parameterId));
-                } else {
-                    methodInput.disabled = true;
-                    methodInput.value = 'PUT';
-                    directForm.setAttribute('action', routeMap.parameterStore);
-                    directDeleteForm.hidden = true;
-                    directDeleteForm.removeAttribute('action');
-                }
             };
 
             const populateSubcategorySection = (node) => {
                 const section = sections.subcategory;
+
                 if (!section) {
                     return;
                 }
@@ -865,12 +897,15 @@
                 const categoryInput = section.querySelector('[data-editor-input="subcategory-category"]');
                 const parentInput = section.querySelector('[data-editor-input="subcategory-parent"]');
 
+                if (!categoryInput || !parentInput) {
+                    return;
+                }
+
                 categoryInput.value = node.dataset.categoryId ?? '';
                 syncParentSubcategoryOptions(categoryInput, parentInput, node.dataset.id ?? '');
                 parentInput.value = node.dataset.parentSubcategoryId ?? '';
 
                 section.querySelector('[data-editor-input="subcategory-name"]').value = node.dataset.name ?? '';
-                section.querySelector('[data-editor-input="subcategory-sort"]').value = node.dataset.sortOrder ?? 0;
                 section.querySelector('[data-editor-input="subcategory-active"]').checked = (node.dataset.active ?? '0') === '1';
 
                 setFormAction('[data-editor-form="subcategory-update"]', fillRoute(routeMap.subcategoryUpdate, node.dataset.id));
@@ -879,12 +914,18 @@
 
             const populateParameterSection = (node) => {
                 const section = sections.parameter;
+
                 if (!section) {
                     return;
                 }
 
                 const categoryInput = section.querySelector('[data-editor-input="parameter-category"]');
                 const subcategoryInput = section.querySelector('[data-editor-input="parameter-subcategory"]');
+                const parameterForm = section.querySelector('[data-editor-form="parameter-update"]');
+
+                if (!categoryInput || !subcategoryInput || !parameterForm) {
+                    return;
+                }
 
                 categoryInput.value = node.dataset.categoryId ?? '';
                 syncSubcategoryOptions(categoryInput, subcategoryInput);
@@ -895,12 +936,21 @@
                 section.querySelector('[data-editor-input="parameter-unit"]').value = node.dataset.unit ?? '';
                 section.querySelector('[data-editor-input="parameter-reference"]').value = node.dataset.reference ?? '';
                 section.querySelector('[data-editor-input="parameter-options"]').value = node.dataset.optionsCsv ?? '';
-                section.querySelector('[data-editor-input="parameter-sort"]').value = node.dataset.sortOrder ?? 0;
+
+                const defaultToggleInput = section.querySelector('[data-editor-input="parameter-default-toggle"]');
+                const defaultOptionInput = section.querySelector('[data-editor-input="parameter-default-option"]');
+
+                if (defaultToggleInput && defaultOptionInput) {
+                    defaultOptionInput.value = node.dataset.defaultValue ?? '';
+                    defaultToggleInput.checked = defaultOptionInput.value !== '';
+                }
+
                 section.querySelector('[data-editor-input="parameter-visible"]').checked = (node.dataset.visible ?? '0') === '1';
                 section.querySelector('[data-editor-input="parameter-active"]').checked = (node.dataset.active ?? '0') === '1';
 
                 setFormAction('[data-editor-form="parameter-update"]', fillRoute(routeMap.parameterUpdate, node.dataset.id));
                 setFormAction('[data-editor-form="parameter-delete"]', fillRoute(routeMap.parameterDelete, node.dataset.id));
+                refreshValueTypeForm(parameterForm);
             };
 
             const populateSectionFromNode = (type, node) => {
@@ -974,6 +1024,8 @@
                     }
                 }
 
+                refreshValueTypeFormsInSection(section);
+
                 currentSelection = {
                     key,
                     type,
@@ -994,22 +1046,24 @@
                 if (type === 'discipline') {
                     const modal = document.getElementById('modal-add-analysis');
                     const disciplineSelect = modal?.querySelector('[data-create-category-discipline]');
+
                     if (disciplineSelect) {
                         disciplineSelect.value = node.dataset.id ?? '';
                     }
+
                     openDialog(modal);
                     return;
                 }
 
                 if (type === 'category') {
-                    const modal = document.getElementById('modal-add-subcategory');
-                    const categoryInput = modal?.querySelector('[data-create-subcategory-category]');
-                    const parentInput = modal?.querySelector('[data-create-subcategory-parent]');
+                    const modal = document.getElementById('modal-add-sub-analysis');
+                    const categorySelect = modal?.querySelector('[data-create-parameter-category]');
+                    const subcategorySelect = modal?.querySelector('[data-create-parameter-subcategory]');
 
-                    if (categoryInput && parentInput) {
-                        categoryInput.value = node.dataset.id ?? '';
-                        parentInput.value = '';
-                        syncParentSubcategoryOptions(categoryInput, parentInput);
+                    if (categorySelect && subcategorySelect) {
+                        categorySelect.value = node.dataset.id ?? '';
+                        syncSubcategoryOptions(categorySelect, subcategorySelect);
+                        subcategorySelect.value = '';
                     }
 
                     openDialog(modal);
@@ -1048,10 +1102,181 @@
                 }
             };
 
+            const isDraggableNode = (node) =>
+                (node.dataset.nodeType === 'category' || node.dataset.nodeType === 'subcategory')
+                && node.dataset.dragEnabled === '1';
+
+            const isValidDropTarget = (draggedNode, targetNode) => {
+                if (!draggedNode || !targetNode || draggedNode === targetNode) {
+                    return false;
+                }
+
+                if (draggedNode.dataset.nodeType !== targetNode.dataset.nodeType) {
+                    return false;
+                }
+
+                const draggedItem = draggedNode.closest('li');
+                const targetItem = targetNode.closest('li');
+
+                if (!draggedItem || !targetItem) {
+                    return false;
+                }
+
+                return draggedItem.parentElement === targetItem.parentElement;
+            };
+
+            const collectOrderedIds = (list, nodeType) => Array.from(list.children)
+                .map((item) => item.querySelector(':scope > details > summary.lms-tree-node'))
+                .filter((summary) => summary && summary.dataset.nodeType === nodeType)
+                .map((summary) => Number(summary.dataset.id))
+                .filter((id) => Number.isInteger(id));
+
+            const persistReorder = async (node, list) => {
+                if (!routeMap.reorder) {
+                    return;
+                }
+
+                const orderedIds = collectOrderedIds(list, node.dataset.nodeType);
+
+                if (orderedIds.length === 0) {
+                    return;
+                }
+
+                const payload = node.dataset.nodeType === 'category'
+                    ? {
+                        type: 'category',
+                        discipline_id: Number(node.dataset.parentId ?? 0),
+                        ordered_ids: orderedIds,
+                    }
+                    : {
+                        type: 'subcategory',
+                        category_id: Number(node.dataset.categoryId ?? 0),
+                        parent_subcategory_id: node.dataset.parentType === 'subcategory'
+                            ? Number(node.dataset.parentId ?? 0)
+                            : null,
+                        ordered_ids: orderedIds,
+                    };
+
+                const response = await fetch(routeMap.reorder, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': editorRoot.dataset.csrfToken ?? '',
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                if (!response.ok) {
+                    let message = labels.reorderFailed;
+
+                    try {
+                        const data = await response.json();
+                        const firstError = data?.errors ? Object.values(data.errors)?.[0]?.[0] : null;
+                        message = firstError || data?.message || message;
+                    } catch {
+                        message = labels.reorderFailed;
+                    }
+
+                    throw new Error(message);
+                }
+            };
+
+            editorRoot.querySelectorAll('[data-drag-handle]').forEach((handle) => {
+                handle.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                });
+            });
+
             nodeElements.forEach((node) => {
                 node.addEventListener('click', () => {
+                    if (dragState) {
+                        return;
+                    }
+
                     showNodeEditor(node);
                 });
+
+                if (!isDraggableNode(node)) {
+                    return;
+                }
+
+                node.addEventListener('dragstart', (event) => {
+                    const item = node.closest('li');
+                    const list = item?.parentElement;
+
+                    if (!item || !list) {
+                        event.preventDefault();
+                        return;
+                    }
+
+                    dragState = {
+                        node,
+                        item,
+                        list,
+                        moved: false,
+                    };
+
+                    item.classList.add('is-dragging');
+
+                    if (event.dataTransfer) {
+                        event.dataTransfer.effectAllowed = 'move';
+                        event.dataTransfer.setData('text/plain', selectionKey(node));
+                    }
+                });
+
+                node.addEventListener('dragend', async () => {
+                    if (!dragState || dragState.node !== node) {
+                        return;
+                    }
+
+                    const { list, moved, item } = dragState;
+                    item.classList.remove('is-dragging');
+                    dragState = null;
+
+                    if (!moved) {
+                        return;
+                    }
+
+                    try {
+                        await persistReorder(node, list);
+                    } catch (error) {
+                        window.alert(error?.message || labels.reorderFailed);
+                    }
+                });
+            });
+
+            editorRoot.addEventListener('dragover', (event) => {
+                if (!dragState) {
+                    return;
+                }
+
+                const targetNode = event.target.closest('[data-node-type]');
+
+                if (!isValidDropTarget(dragState.node, targetNode)) {
+                    return;
+                }
+
+                const targetItem = targetNode.closest('li');
+
+                if (!targetItem || targetItem === dragState.item) {
+                    return;
+                }
+
+                event.preventDefault();
+
+                const rect = targetNode.getBoundingClientRect();
+                const insertAfter = event.clientY > rect.top + (rect.height / 2);
+                const referenceNode = insertAfter ? targetItem.nextElementSibling : targetItem;
+                dragState.list.insertBefore(dragState.item, referenceNode);
+                dragState.moved = true;
+            });
+
+            editorRoot.addEventListener('drop', (event) => {
+                if (dragState) {
+                    event.preventDefault();
+                }
             });
 
             Object.entries(sections).forEach(([type, section]) => {
@@ -1073,6 +1298,7 @@
                 });
 
                 const cancelButton = section.querySelector(`[data-editor-cancel="${type}"]`);
+
                 if (cancelButton) {
                     cancelButton.addEventListener('click', () => {
                         if (!currentSelection || currentSelection.type !== type) {
@@ -1081,9 +1307,12 @@
 
                         draftState.delete(currentSelection.key);
                         populateSectionFromNode(type, currentSelection.node);
+                        refreshValueTypeFormsInSection(section);
                     });
                 }
             });
+
+            document.querySelectorAll('form').forEach((form) => initializeValueTypeForm(form));
 
             const parameterCategoryInput = editorRoot.querySelector('[data-editor-input="parameter-category"]');
             const parameterSubcategoryInput = editorRoot.querySelector('[data-editor-input="parameter-subcategory"]');
@@ -1159,6 +1388,7 @@
                     }
 
                     const oldestBranch = openRootOrder.shift();
+
                     if (oldestBranch && oldestBranch !== branch) {
                         oldestBranch.open = false;
                     }
