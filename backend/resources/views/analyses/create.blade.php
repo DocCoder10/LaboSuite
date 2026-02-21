@@ -15,7 +15,7 @@
         <h2>{{ __('messages.nav_new_analysis') }}</h2>
     </section>
 
-    <form method="POST" action="{{ route('analyses.selection.store') }}" class="lms-grid">
+    <form method="POST" action="{{ route('analyses.selection.store') }}" class="lms-grid lms-analysis-create">
         @csrf
 
         <section class="lms-card lms-stack is-hoverable">
@@ -58,14 +58,20 @@
                                 $value = $isBuiltIn
                                     ? old('patient.'.$fieldKey, $draftPatient[$fieldKey] ?? '')
                                     : old('patient.extra_fields.'.$fieldKey, $draftExtraFields[$fieldKey] ?? '');
+
+                                $inputType = $fieldType === 'number' ? 'number' : 'text';
+                                $inputMin = $fieldKey === 'age' ? 0 : null;
+                                $inputMax = $fieldKey === 'age' ? 130 : null;
+                                $inputStep = $fieldType === 'number' ? 'any' : null;
                             @endphp
 
                             <x-ui.input
-                                type="{{ $fieldType === 'number' ? 'number' : 'text' }}"
+                                type="{{ $inputType }}"
                                 name="{{ $fieldName }}"
                                 value="{{ $value }}"
-                                @if ($fieldKey === 'age') min="0" max="130" @endif
-                                @if ($fieldType === 'number') step="any" @endif
+                                :min="$inputMin"
+                                :max="$inputMax"
+                                :step="$inputStep"
                                 :required="$isRequired"
                             />
                         @endif

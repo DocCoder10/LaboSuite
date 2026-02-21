@@ -24,26 +24,27 @@ p {
 
 .lms-main {
     display: grid;
-    gap: 1rem;
+    gap: 0.7rem;
+    align-content: start;
 }
 
 .lms-page-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 1rem;
+    gap: 0.7rem;
 }
 
 .lms-page-head h2 {
-    font-size: 1.9rem;
+    font-size: 1.05rem;
     font-weight: 700;
-    letter-spacing: -0.015em;
+    letter-spacing: -0.01em;
 }
 
 .lms-inline-actions {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
+    gap: 0.45rem;
 }
 
 .lms-wrap-actions {
@@ -52,24 +53,24 @@ p {
 
 .lms-grid {
     display: grid;
-    gap: 1rem;
+    gap: 0.7rem;
 }
 
 .lms-grid-2 {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1rem;
+    gap: 0.7rem;
 }
 
 .lms-grid-3 {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 1rem;
+    gap: 0.7rem;
 }
 
 .lms-stack {
     display: grid;
-    gap: 0.9rem;
+    gap: 0.65rem;
 }
 
 .lms-muted {

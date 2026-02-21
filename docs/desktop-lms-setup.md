@@ -113,3 +113,13 @@ Generated installer: `app/dist/LaboSuite-LMS-Setup-<version>.exe`
 ## Notes
 - This repo now has a production-oriented scaffold, but not yet full admin CRUD edit/delete for all catalog entities.
 - PDF export relies on Chromium print-to-PDF from the report page.
+
+## UI Stability Guardrails (2026-02-21)
+- Fixed: fields in `Nouvelle analyse` (`Prenom`, `Nom`, `Telephone`, `Age`) are editable again.
+- Root cause: unresolved Blade component tags (`<x-ui.input ...>`) were rendered as raw HTML text when Blade directives were mixed directly inside component attributes.
+- Safe pattern:
+  - compute conditional attributes in `@php` first (example: `min/max/step/required`)
+  - pass them as normal component attributes (`:min="$inputMin"`, etc.)
+  - avoid `@if ... @endif` inside the opening tag of `<x-ui.*>` components.
+- Added regression test: `backend/tests/Feature/BladeComponentCompilationTest.php`
+  - ensures critical pages never return raw `<x-ui.*>` tags.

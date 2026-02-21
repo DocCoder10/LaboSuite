@@ -1,5 +1,5 @@
 .lms-content-shell > .lms-page-head:first-child {
-    margin-bottom: 0.15rem;
+    margin-bottom: 0.05rem;
 }
 
 .lms-sticky-head {
@@ -14,7 +14,7 @@
 
 .lms-kpi-grid {
     display: grid;
-    gap: 0.9rem;
+    gap: 0.6rem;
     grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
@@ -23,7 +23,7 @@
     border-radius: var(--ui-radius-md);
     background: #ffffff;
     box-shadow: var(--ui-shadow-sm);
-    padding: 0.95rem;
+    padding: 0.7rem;
     display: grid;
     gap: 0.55rem;
     align-content: start;
@@ -96,19 +96,19 @@
     align-items: center;
     justify-content: space-between;
     gap: 0.8rem;
-    padding: 1rem;
+    padding: 0.65rem 0.75rem;
     border-bottom: 1px solid var(--ui-border);
 }
 
 .lms-toolbar-card-head h3 {
-    font-size: 2rem;
+    font-size: 1.3rem;
     letter-spacing: -0.022em;
 }
 
 .lms-list-filters {
     display: grid;
-    gap: 0.7rem;
-    padding: 1rem;
+    gap: 0.5rem;
+    padding: 0.65rem 0.75rem;
     border-bottom: 1px solid var(--ui-border);
     grid-template-columns: minmax(300px, 1fr) 170px 170px 190px;
     align-items: end;
@@ -124,7 +124,7 @@
 }
 
 .lms-filter-search input {
-    font-size: 1.08rem;
+    font-size: 0.95rem;
 }
 
 .lms-results-shell {
@@ -140,7 +140,7 @@
 }
 
 .lms-table-wrap-list {
-    max-height: 63vh;
+    max-height: 52vh;
     overflow: auto;
     border-radius: 0;
     border: 0;
@@ -157,7 +157,7 @@
 
 .lms-table th,
 .lms-table td {
-    padding: 0.85rem 0.85rem;
+    padding: 0.65rem 0.72rem;
     border-bottom: 1px solid #e2e8f0;
     vertical-align: top;
     text-align: left;
@@ -204,7 +204,7 @@
 
 .lms-list-footer {
     border-top: 1px solid var(--ui-border);
-    padding: 0.85rem 1rem;
+    padding: 0.6rem 0.75rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -250,19 +250,19 @@
 
 .lms-settings-shell {
     display: grid;
-    gap: 0.95rem;
+    gap: 0.65rem;
 }
 
 .lms-settings-cluster {
     display: grid;
-    gap: 0.9rem;
+    gap: 0.65rem;
 }
 
 .lms-settings-panel {
     border: 1px solid var(--ui-border);
     border-radius: var(--ui-radius-sm);
     background: #f8fafc;
-    padding: 0.9rem;
+    padding: 0.75rem;
 }
 
 .lms-logo-upload {
@@ -285,13 +285,64 @@
 .lms-catalog-layout {
     display: grid;
     grid-template-columns: minmax(300px, 0.9fr) minmax(0, 1.7fr);
-    gap: 1rem;
+    gap: 0.7rem;
     align-items: start;
 }
 
 .lms-tree-panel {
-    max-height: calc(100vh - 220px);
+    max-height: calc(100vh - 280px);
     overflow: auto;
+}
+
+.lms-catalog-head {
+    align-items: flex-start;
+}
+
+.lms-catalog-actions {
+    margin-top: -0.15rem;
+    margin-bottom: 0.1rem;
+}
+
+.lms-analysis-create {
+    align-content: start;
+    gap: 0.65rem;
+}
+
+.lms-analysis-create .lms-card {
+    padding: 0.68rem;
+}
+
+.lms-analysis-create .lms-check-grid {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.55rem 0.8rem;
+}
+
+.lms-check-group {
+    display: grid;
+    align-content: start;
+    gap: 0.3rem;
+}
+
+.lms-check-group h4 {
+    margin: 0 0 0.08rem;
+    font-size: 0.95rem;
+}
+
+.lms-check-group .lms-checkbox {
+    display: flex;
+    justify-content: flex-start;
+    width: 100%;
+    gap: 0.42rem;
+    font-size: 0.88rem;
+    line-height: 1.25;
+}
+
+.lms-check-group .lms-checkbox + .lms-checkbox {
+    margin-top: 0.06rem;
+}
+
+.lms-check-group .lms-checkbox input[type='checkbox'] {
+    margin-top: 0.08rem;
 }
 
 .lms-tree-node {
@@ -386,11 +437,11 @@
 }
 
 body.lms-compact .lms-content-shell {
-    padding: 0.95rem;
+    padding: 0.68rem;
 }
 
 body.lms-compact .lms-card {
-    padding: 0.78rem;
+    padding: 0.62rem;
 }
 
 body.lms-compact .lms-list-filters {

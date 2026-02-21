@@ -5,11 +5,13 @@
 body.lms-body {
     margin: 0;
     min-height: 100vh;
+    height: 100vh;
     color: var(--ui-text);
     font-family: var(--font-sans);
     background: var(--ui-bg);
     position: relative;
     isolation: isolate;
+    overflow: hidden;
 }
 
 body.lms-body::before {
@@ -39,4 +41,11 @@ body.lms-print-body,
 body.lms-print-body::before,
 body.lms-print-body::after {
     background: #ffffff;
+}
+
+@media screen and (max-width: 980px) {
+    body.lms-body {
+        height: auto;
+        overflow: auto;
+    }
 }
