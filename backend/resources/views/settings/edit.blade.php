@@ -153,38 +153,38 @@
                                 >
                             </label>
                             @php
-                                $offsetPresets = [-16, -8, 0, 8, 16];
-                                $selectedLeftOffset = (int) old('header_logo_offset_x_left', $identity['header_logo_offset_x_left'] ?? 0);
-                                $selectedRightOffset = (int) old('header_logo_offset_x_right', $identity['header_logo_offset_x_right'] ?? 0);
+                                $positionPresets = ['left', 'center', 'right'];
+                                $selectedLeftPosition = (string) old('header_logo_position_left', $identity['header_logo_position_left'] ?? 'center');
+                                $selectedRightPosition = (string) old('header_logo_position_right', $identity['header_logo_position_right'] ?? 'center');
                             @endphp
                             <div class="lms-field">
-                                <span>{{ __('messages.header_logo_offset_x_left') }}</span>
+                                <span>{{ __('messages.header_logo_position_left') }}</span>
                                 <div class="lms-offset-preset-group">
-                                    @foreach ($offsetPresets as $offsetValue)
+                                    @foreach ($positionPresets as $positionValue)
                                         <label class="lms-offset-preset">
                                             <input
                                                 type="radio"
-                                                name="header_logo_offset_x_left"
-                                                value="{{ $offsetValue }}"
-                                                @checked($selectedLeftOffset === $offsetValue)
+                                                name="header_logo_position_left"
+                                                value="{{ $positionValue }}"
+                                                @checked($selectedLeftPosition === $positionValue)
                                             >
-                                            <span>{{ $offsetValue > 0 ? '+'.$offsetValue : $offsetValue }}px</span>
+                                            <span>{{ __('messages.position_'.$positionValue) }}</span>
                                         </label>
                                     @endforeach
                                 </div>
                             </div>
                             <div class="lms-field">
-                                <span>{{ __('messages.header_logo_offset_x_right') }}</span>
+                                <span>{{ __('messages.header_logo_position_right') }}</span>
                                 <div class="lms-offset-preset-group">
-                                    @foreach ($offsetPresets as $offsetValue)
+                                    @foreach ($positionPresets as $positionValue)
                                         <label class="lms-offset-preset">
                                             <input
                                                 type="radio"
-                                                name="header_logo_offset_x_right"
-                                                value="{{ $offsetValue }}"
-                                                @checked($selectedRightOffset === $offsetValue)
+                                                name="header_logo_position_right"
+                                                value="{{ $positionValue }}"
+                                                @checked($selectedRightPosition === $positionValue)
                                             >
-                                            <span>{{ $offsetValue > 0 ? '+'.$offsetValue : $offsetValue }}px</span>
+                                            <span>{{ __('messages.position_'.$positionValue) }}</span>
                                         </label>
                                     @endforeach
                                 </div>
@@ -304,6 +304,7 @@
                             <p class="lms-font-preview-title">{{ __('messages.font_preview_title_app') }}</p>
                             <p class="lms-font-preview-sample">{{ __('messages.font_preview_sample') }}</p>
                         </div>
+                        <p class="lms-muted">{{ __('messages.settings_font_family_apply_note') }}</p>
 
                         <div class="lms-grid-3">
                             <label class="lms-field">

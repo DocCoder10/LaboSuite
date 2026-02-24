@@ -11,7 +11,7 @@ body.lms-body {
     min-height: 100vh;
     height: 100vh;
     color: var(--ui-text);
-    font-family: var(--font-sans);
+    font-family: var(--lms-app-font-family, var(--font-sans));
     font-size: 1rem;
     background: var(--ui-bg);
     position: relative;

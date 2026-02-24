@@ -25,8 +25,8 @@ class SeedPersistenceSafetyTest extends TestCase
             'header_info_position' => 'right',
             'header_logo_mode' => 'single_left',
             'header_logo_size_px' => 190,
-            'header_logo_offset_x_left' => 16,
-            'header_logo_offset_x_right' => 0,
+            'header_logo_position_left' => 'right',
+            'header_logo_position_right' => 'center',
             'logo_left_path' => 'lab-logos/custom-left.png',
             'logo_right_path' => null,
         ]);
@@ -65,4 +65,3 @@ class SeedPersistenceSafetyTest extends TestCase
         $this->assertGreaterThan(0, Discipline::query()->count());
     }
 }
-

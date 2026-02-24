@@ -19,8 +19,8 @@ class LabSettingsDefaults
             'header_info_position' => 'center',
             'header_logo_mode' => 'single_left',
             'header_logo_size_px' => 170,
-            'header_logo_offset_x_left' => 0,
-            'header_logo_offset_x_right' => 0,
+            'header_logo_position_left' => 'center',
+            'header_logo_position_right' => 'center',
             'logo_left_path' => null,
             'logo_right_path' => null,
         ];

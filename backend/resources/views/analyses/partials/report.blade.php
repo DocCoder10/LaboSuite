@@ -31,15 +31,38 @@
     $displayLeftLogo = '';
     $displayRightLogo = '';
     $logoSizePx = max(96, min(240, (int) ($identity['header_logo_size_px'] ?? 170)));
-    $allowedOffsets = [-16, -8, 0, 8, 16];
-    $logoOffsetLeft = (int) ($identity['header_logo_offset_x_left'] ?? 0);
-    $logoOffsetRight = (int) ($identity['header_logo_offset_x_right'] ?? 0);
-    if (! in_array($logoOffsetLeft, $allowedOffsets, true)) {
-        $logoOffsetLeft = 0;
-    }
-    if (! in_array($logoOffsetRight, $allowedOffsets, true)) {
-        $logoOffsetRight = 0;
-    }
+    $logoSlotWidthPx = max(140, min(300, $logoSizePx + 24));
+
+    $resolveLegacyPosition = static function (mixed $legacyOffset): string {
+        $offset = (int) $legacyOffset;
+
+        if ($offset <= -8) {
+            return 'left';
+        }
+
+        if ($offset >= 8) {
+            return 'right';
+        }
+
+        return 'center';
+    };
+
+    $normalizePosition = static function (mixed $position): string {
+        $resolved = is_string($position) ? $position : 'center';
+
+        return in_array($resolved, ['left', 'center', 'right'], true) ? $resolved : 'center';
+    };
+
+    $logoPositionLeft = $normalizePosition($identity['header_logo_position_left'] ?? $resolveLegacyPosition($identity['header_logo_offset_x_left'] ?? 0));
+    $logoPositionRight = $normalizePosition($identity['header_logo_position_right'] ?? $resolveLegacyPosition($identity['header_logo_offset_x_right'] ?? 0));
+
+    $resolveJustify = static fn (string $position): string => match ($position) {
+        'left' => 'flex-start',
+        'right' => 'flex-end',
+        default => 'center',
+    };
+    $logoJustifyLeft = $resolveJustify($logoPositionLeft);
+    $logoJustifyRight = $resolveJustify($logoPositionRight);
 
     if ($headerLogoMode === 'single_left') {
         $displayLeftLogo = $leftLogoSrc !== '' ? $leftLogoSrc : $rightLogoSrc;
@@ -65,6 +88,7 @@
 
     $reportTypographyInlineStyle = collect([
         '--lms-report-font-family: '.$reportFontStacks[$reportFontKey],
+        '--lms-logo-slot-width: '.$logoSlotWidthPx.'px',
         '--lms-report-lab-name-size: '.((int) ($layout['report_lab_name_size_px'] ?? 18)).'px',
         '--lms-report-lab-meta-size: '.((int) ($layout['report_lab_meta_size_px'] ?? 13)).'px',
         '--lms-report-title-size: '.((int) ($layout['report_title_size_px'] ?? 20)).'px',
@@ -84,13 +108,13 @@
     <header class="lms-report-head">
         @if ($headerInfoPosition === 'center')
             <div class="lms-report-header-grid is-info-center">
-                <div class="lms-report-logo-slot lms-report-logo-slot-left {{ $displayLeftLogo === '' ? 'is-empty' : '' }}">
+                <div class="lms-report-logo-slot lms-report-logo-slot-left {{ $displayLeftLogo === '' ? 'is-empty' : '' }}" style="--lms-logo-justify: {{ $logoJustifyLeft }};">
                     @if ($displayLeftLogo !== '')
                         <img
                             src="{{ $displayLeftLogo }}"
                             alt="Logo gauche laboratoire"
                             class="lms-report-logo"
-                            style="--lms-logo-max-width: {{ $logoSizePx }}px; --lms-logo-offset-x: {{ $logoOffsetLeft }}px;"
+                            style="--lms-logo-max-width: {{ $logoSizePx }}px;"
                         >
                     @endif
                 </div>
@@ -112,13 +136,13 @@
                     </p>
                 </div>
 
-                <div class="lms-report-logo-slot lms-report-logo-slot-right {{ $displayRightLogo === '' ? 'is-empty' : '' }}">
+                <div class="lms-report-logo-slot lms-report-logo-slot-right {{ $displayRightLogo === '' ? 'is-empty' : '' }}" style="--lms-logo-justify: {{ $logoJustifyRight }};">
                     @if ($displayRightLogo !== '')
                         <img
                             src="{{ $displayRightLogo }}"
                             alt="Logo droit laboratoire"
                             class="lms-report-logo"
-                            style="--lms-logo-max-width: {{ $logoSizePx }}px; --lms-logo-offset-x: {{ $logoOffsetRight }}px;"
+                            style="--lms-logo-max-width: {{ $logoSizePx }}px;"
                         >
                     @endif
                 </div>
@@ -142,26 +166,26 @@
                     </p>
                 </div>
 
-                <div class="lms-report-logo-slot lms-report-logo-slot-right {{ $displayRightLogo === '' ? 'is-empty' : '' }}">
+                <div class="lms-report-logo-slot lms-report-logo-slot-right {{ $displayRightLogo === '' ? 'is-empty' : '' }}" style="--lms-logo-justify: {{ $logoJustifyRight }};">
                     @if ($displayRightLogo !== '')
                         <img
                             src="{{ $displayRightLogo }}"
                             alt="Logo droit laboratoire"
                             class="lms-report-logo"
-                            style="--lms-logo-max-width: {{ $logoSizePx }}px; --lms-logo-offset-x: {{ $logoOffsetRight }}px;"
+                            style="--lms-logo-max-width: {{ $logoSizePx }}px;"
                         >
                     @endif
                 </div>
             </div>
         @else
             <div class="lms-report-header-grid is-info-right">
-                <div class="lms-report-logo-slot lms-report-logo-slot-left {{ $displayLeftLogo === '' ? 'is-empty' : '' }}">
+                <div class="lms-report-logo-slot lms-report-logo-slot-left {{ $displayLeftLogo === '' ? 'is-empty' : '' }}" style="--lms-logo-justify: {{ $logoJustifyLeft }};">
                     @if ($displayLeftLogo !== '')
                         <img
                             src="{{ $displayLeftLogo }}"
                             alt="Logo gauche laboratoire"
                             class="lms-report-logo"
-                            style="--lms-logo-max-width: {{ $logoSizePx }}px; --lms-logo-offset-x: {{ $logoOffsetLeft }}px;"
+                            style="--lms-logo-max-width: {{ $logoSizePx }}px;"
                         >
                     @endif
                 </div>

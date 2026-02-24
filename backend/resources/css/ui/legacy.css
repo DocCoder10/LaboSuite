@@ -875,28 +875,21 @@ li.is-dragging > details > .lms-tree-node {
 }
 
 .lms-report-header-grid.is-info-center {
-    grid-template-columns: minmax(0, 130px) minmax(0, 1fr) minmax(0, 130px);
+    grid-template-columns: minmax(0, var(--lms-logo-slot-width, 170px)) minmax(0, 1fr) minmax(0, var(--lms-logo-slot-width, 170px));
 }
 
 .lms-report-header-grid.is-info-left,
 .lms-report-header-grid.is-info-right {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 130px);
+    grid-template-columns: minmax(0, 1fr) minmax(0, var(--lms-logo-slot-width, 170px));
 }
 
 .lms-report-logo-slot {
     min-height: 0;
     display: flex;
     align-items: center;
+    justify-content: var(--lms-logo-justify, center);
     overflow: hidden;
     align-self: stretch;
-}
-
-.lms-report-logo-slot-left {
-    justify-content: flex-start;
-}
-
-.lms-report-logo-slot-right {
-    justify-content: flex-end;
 }
 
 .lms-report-logo-slot.is-empty {
@@ -904,15 +897,14 @@ li.is-dragging > details > .lms-tree-node {
 }
 
 .lms-report-logo {
-    width: 100%;
-    max-width: var(--lms-logo-max-width, 170px);
+    width: auto;
+    max-width: min(var(--lms-logo-max-width, 170px), 100%);
     max-height: 100%;
     object-fit: contain;
     border: 0;
     border-radius: 0;
     background: transparent;
     padding: 0;
-    transform: translateX(var(--lms-logo-offset-x, 0));
 }
 
 .lms-report-lab-text h3,

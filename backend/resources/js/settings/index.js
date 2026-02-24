@@ -94,7 +94,8 @@ if (!settingsRoot) {
     const previewNodes = [...settingsRoot.querySelectorAll('[data-preview-node]')];
 
     const initialComputed = window.getComputedStyle(document.documentElement);
-    const initialAppFontStack = initialComputed.getPropertyValue('--font-sans').trim();
+    const initialAppFontStack = initialComputed.getPropertyValue('--lms-app-font-family').trim()
+        || initialComputed.getPropertyValue('--font-sans').trim();
     const initialReportFontStack = initialComputed.getPropertyValue('--lms-report-font-family').trim();
 
     const uiStorage = {
@@ -461,7 +462,6 @@ if (!settingsRoot) {
         }
 
         const stack = getSelectedFontStack(appFontSelect, initialAppFontStack);
-        document.documentElement.style.setProperty('--font-sans', stack);
         appFontPreview?.style.setProperty('font-family', stack);
     };
 

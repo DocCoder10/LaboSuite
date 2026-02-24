@@ -103,7 +103,8 @@
 
 <style>
     :root {
-        --font-sans: {{ $appFontStacks[$appFontKey] }};
+        --lms-app-font-family: {!! $appFontStacks[$appFontKey] !!};
+        --font-sans: {!! $appFontStacks[$appFontKey] !!};
         --lms-ui-font-scale: {{ number_format($uiFontScale, 2, '.', '') }};
         --lms-label-font-size: {{ number_format($labelFontSizeRem, 4, '.', '') }}rem;
         --lms-label-font-weight: {{ $labelWeight }};
@@ -115,7 +116,7 @@
         --lms-route-enter-duration: {{ $motion['enter'] }}ms;
         --lms-route-exit-duration: {{ $motion['exit'] }}ms;
 
-        --lms-report-font-family: {{ $reportFontStacks[$reportFontKey] }};
+        --lms-report-font-family: {!! $reportFontStacks[$reportFontKey] !!};
         --lms-report-lab-name-size: {{ $reportLabNameSize }}px;
         --lms-report-lab-meta-size: {{ $reportLabMetaSize }}px;
         --lms-report-title-size: {{ $reportTitleSize }}px;

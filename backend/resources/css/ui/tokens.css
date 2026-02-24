@@ -1,4 +1,5 @@
 :root {
+    --lms-app-font-family: 'Inter', 'IBM Plex Sans', 'Segoe UI', sans-serif;
     --font-sans: 'Inter', 'IBM Plex Sans', 'Segoe UI', sans-serif;
     --lms-ui-font-scale: 1;
     --lms-label-font-size: 0.84rem;

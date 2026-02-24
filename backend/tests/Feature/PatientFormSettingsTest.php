@@ -242,8 +242,8 @@ class PatientFormSettingsTest extends TestCase
             'header_info_position' => 'center',
             'header_logo_mode' => 'both_distinct',
             'header_logo_size_px' => 146,
-            'header_logo_offset_x_left' => -8,
-            'header_logo_offset_x_right' => 8,
+            'header_logo_position_left' => 'left',
+            'header_logo_position_right' => 'right',
             'logo_left' => UploadedFile::fake()->image('left.png', 320, 120),
             'logo_right' => UploadedFile::fake()->image('right.png', 320, 120),
         ]);
@@ -255,8 +255,8 @@ class PatientFormSettingsTest extends TestCase
         $this->assertSame('center', $identity['header_info_position'] ?? null);
         $this->assertSame('both_distinct', $identity['header_logo_mode'] ?? null);
         $this->assertSame(146, $identity['header_logo_size_px'] ?? null);
-        $this->assertSame(-8, $identity['header_logo_offset_x_left'] ?? null);
-        $this->assertSame(8, $identity['header_logo_offset_x_right'] ?? null);
+        $this->assertSame('left', $identity['header_logo_position_left'] ?? null);
+        $this->assertSame('right', $identity['header_logo_position_right'] ?? null);
         $this->assertNotEmpty($identity['logo_left_path'] ?? null);
         $this->assertNotEmpty($identity['logo_right_path'] ?? null);
         Storage::disk('public')->assertExists((string) ($identity['logo_left_path'] ?? ''));
@@ -301,8 +301,8 @@ class PatientFormSettingsTest extends TestCase
             'header_info_position' => 'center',
             'header_logo_mode' => 'single_left',
             'header_logo_size_px' => 180,
-            'header_logo_offset_x_left' => 16,
-            'header_logo_offset_x_right' => 0,
+            'header_logo_position_left' => 'right',
+            'header_logo_position_right' => 'center',
             'logo_left' => UploadedFile::fake()->image('persist-left.png', 320, 120),
         ])->assertSessionHasNoErrors();
 
@@ -317,7 +317,8 @@ class PatientFormSettingsTest extends TestCase
         $response->assertSee('Lab Persist');
         $response->assertSee(Storage::disk('public')->url($leftPath), false);
         $response->assertSee('value="180"', false);
-        $response->assertSee('value="16"', false);
+        $response->assertSee('name="header_logo_position_left"', false);
+        $response->assertSee('value="right"', false);
     }
 
     public function test_lab_settings_can_store_typography_controls(): void
@@ -352,6 +353,29 @@ class PatientFormSettingsTest extends TestCase
         $this->assertSame(0.08, (float) ($uiAppearance['label_letter_spacing_em'] ?? 0));
         $this->assertSame('uppercase', $uiAppearance['label_text_transform'] ?? null);
         $this->assertSame('fluid', $uiAppearance['motion_profile'] ?? null);
+    }
+
+    public function test_font_css_variables_are_rendered_as_valid_css_values(): void
+    {
+        LabSetting::putValue('ui_appearance', [
+            ...LabSettingsDefaults::uiAppearance(),
+            'app_font_family' => 'legacy',
+        ]);
+
+        LabSetting::putValue('report_layout', [
+            ...LabSettingsDefaults::reportLayout(),
+            'report_font_family' => 'robotic',
+        ]);
+
+        $response = $this->get(route('settings.edit', ['section' => 'lab']));
+        $response->assertOk();
+
+        $html = $response->getContent();
+
+        $this->assertStringContainsString("--lms-app-font-family: 'Inter', 'IBM Plex Sans', 'Segoe UI'", $html);
+        $this->assertStringContainsString("--lms-report-font-family: 'Orbitron', 'Rajdhani', 'Consolas'", $html);
+        $this->assertStringNotContainsString('--lms-app-font-family: &#039', $html);
+        $this->assertStringNotContainsString('--lms-report-font-family: &#039', $html);
     }
 
     public function test_each_settings_section_can_be_reset_independently(): void

@@ -21,7 +21,7 @@ class SettingController extends Controller
     private const SECTIONS = ['lab', 'pdf', 'patient'];
     private const HEADER_INFO_POSITIONS = ['left', 'center', 'right'];
     private const HEADER_LOGO_MODES = ['single_left', 'single_right', 'both_distinct', 'both_same'];
-    private const HEADER_LOGO_OFFSET_PRESETS = [-16, -8, 0, 8, 16];
+    private const HEADER_LOGO_POSITIONS = ['left', 'center', 'right'];
     private const APP_FONT_FAMILIES = ['legacy', 'inter', 'roboto', 'medical', 'robotic', 'mono', 'serif'];
     private const UI_FONT_SIZE_LEVELS = ['compact', 'standard', 'comfortable'];
     private const LABEL_FONT_WEIGHTS = ['500', '600', '700'];
@@ -79,8 +79,8 @@ class SettingController extends Controller
                 'header_info_position' => ['required', Rule::in(self::HEADER_INFO_POSITIONS)],
                 'header_logo_mode' => ['nullable', Rule::in(self::HEADER_LOGO_MODES)],
                 'header_logo_size_px' => ['nullable', 'integer', 'min:96', 'max:240'],
-                'header_logo_offset_x_left' => ['nullable', Rule::in(self::HEADER_LOGO_OFFSET_PRESETS)],
-                'header_logo_offset_x_right' => ['nullable', Rule::in(self::HEADER_LOGO_OFFSET_PRESETS)],
+                'header_logo_position_left' => ['nullable', Rule::in(self::HEADER_LOGO_POSITIONS)],
+                'header_logo_position_right' => ['nullable', Rule::in(self::HEADER_LOGO_POSITIONS)],
                 'logo_left' => ['nullable', 'file', 'mimetypes:image/jpeg,image/png,image/gif,image/bmp,image/webp,image/svg+xml,image/avif,image/tiff,image/x-icon,image/vnd.microsoft.icon', 'max:8192'],
                 'logo_right' => ['nullable', 'file', 'mimetypes:image/jpeg,image/png,image/gif,image/bmp,image/webp,image/svg+xml,image/avif,image/tiff,image/x-icon,image/vnd.microsoft.icon', 'max:8192'],
                 'remove_logo_left' => ['nullable', 'boolean'],
@@ -126,8 +126,8 @@ class SettingController extends Controller
                 (string) ($data['header_logo_mode'] ?? 'single_left')
             );
             $logoSizePx = $this->normalizeLogoSize((int) ($data['header_logo_size_px'] ?? 170));
-            $offsetLeft = $this->normalizeLogoOffset((int) ($data['header_logo_offset_x_left'] ?? 0));
-            $offsetRight = $this->normalizeLogoOffset((int) ($data['header_logo_offset_x_right'] ?? 0));
+            $positionLeft = $this->normalizeLogoPosition((string) ($data['header_logo_position_left'] ?? 'center'));
+            $positionRight = $this->normalizeLogoPosition((string) ($data['header_logo_position_right'] ?? 'center'));
 
             LabSetting::putValue('lab_identity', [
                 'name' => $data['name'],
@@ -139,8 +139,8 @@ class SettingController extends Controller
                 'header_info_position' => $infoPosition,
                 'header_logo_mode' => $logoMode,
                 'header_logo_size_px' => $logoSizePx,
-                'header_logo_offset_x_left' => $offsetLeft,
-                'header_logo_offset_x_right' => $offsetRight,
+                'header_logo_position_left' => $positionLeft,
+                'header_logo_position_right' => $positionRight,
                 'logo_left_path' => $leftPath !== '' ? $leftPath : null,
                 'logo_right_path' => $rightPath !== '' ? $rightPath : null,
             ]);
@@ -243,6 +243,11 @@ class SettingController extends Controller
 
         $logoMode = $this->normalizeHeaderLogoMode($infoPosition, (string) ($identity['header_logo_mode'] ?? ($defaults['header_logo_mode'] ?? 'single_left')));
 
+        $legacyLeftOffset = (int) ($identity['header_logo_offset_x_left'] ?? 0);
+        $legacyRightOffset = (int) ($identity['header_logo_offset_x_right'] ?? 0);
+        $leftPosition = (string) ($identity['header_logo_position_left'] ?? $this->legacyOffsetToLogoPosition($legacyLeftOffset));
+        $rightPosition = (string) ($identity['header_logo_position_right'] ?? $this->legacyOffsetToLogoPosition($legacyRightOffset));
+
         return [
             'name' => (string) ($identity['name'] ?? $defaults['name'] ?? ''),
             'address' => (string) ($identity['address'] ?? $defaults['address'] ?? ''),
@@ -253,8 +258,8 @@ class SettingController extends Controller
             'header_info_position' => $infoPosition,
             'header_logo_mode' => $logoMode,
             'header_logo_size_px' => $this->normalizeLogoSize((int) ($identity['header_logo_size_px'] ?? $defaults['header_logo_size_px'] ?? 170)),
-            'header_logo_offset_x_left' => $this->normalizeLogoOffset((int) ($identity['header_logo_offset_x_left'] ?? $defaults['header_logo_offset_x_left'] ?? 0)),
-            'header_logo_offset_x_right' => $this->normalizeLogoOffset((int) ($identity['header_logo_offset_x_right'] ?? $defaults['header_logo_offset_x_right'] ?? 0)),
+            'header_logo_position_left' => $this->normalizeLogoPosition($leftPosition),
+            'header_logo_position_right' => $this->normalizeLogoPosition($rightPosition),
             'logo_left_path' => $leftLogo !== '' ? $leftLogo : null,
             'logo_right_path' => $rightLogo !== '' ? $rightLogo : null,
         ];
@@ -348,9 +353,22 @@ class SettingController extends Controller
         return max(96, min(240, $size));
     }
 
-    private function normalizeLogoOffset(int $offset): int
+    private function normalizeLogoPosition(string $position): string
     {
-        return in_array($offset, self::HEADER_LOGO_OFFSET_PRESETS, true) ? $offset : 0;
+        return in_array($position, self::HEADER_LOGO_POSITIONS, true) ? $position : 'center';
+    }
+
+    private function legacyOffsetToLogoPosition(int $offset): string
+    {
+        if ($offset <= -8) {
+            return 'left';
+        }
+
+        if ($offset >= 8) {
+            return 'right';
+        }
+
+        return 'center';
     }
 
     private function resetSection(string $section): void
