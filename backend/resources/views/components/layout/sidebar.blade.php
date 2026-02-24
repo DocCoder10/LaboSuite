@@ -11,7 +11,7 @@
             aria-label="{{ __('messages.nav_dashboard') }}"
             data-tooltip="{{ __('messages.nav_dashboard') }}"
         >
-            <x-ui.icon name="home" class="h-5 w-5" />
+            <x-ui.icon name="home" class="h-6 w-6" />
         </a>
 
         <a
@@ -20,7 +20,7 @@
             aria-label="{{ __('messages.nav_new_analysis') }}"
             data-tooltip="{{ __('messages.nav_new_analysis') }}"
         >
-            <x-ui.icon name="plus" class="h-5 w-5" />
+            <x-ui.icon name="plus" class="h-6 w-6" />
         </a>
 
         <a
@@ -29,7 +29,7 @@
             aria-label="{{ __('messages.nav_catalog') }}"
             data-tooltip="{{ __('messages.nav_catalog') }}"
         >
-            <x-ui.icon name="book" class="h-5 w-5" />
+            <x-ui.icon name="book" class="h-6 w-6" />
         </a>
 
         <a
@@ -38,7 +38,7 @@
             aria-label="{{ __('messages.nav_settings') }}"
             data-tooltip="{{ __('messages.nav_settings') }}"
         >
-            <x-ui.icon name="settings" class="h-5 w-5" />
+            <x-ui.icon name="settings" class="h-6 w-6" />
         </a>
     </nav>
 

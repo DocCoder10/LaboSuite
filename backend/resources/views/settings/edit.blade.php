@@ -37,18 +37,10 @@
             'mono' => "'JetBrains Mono', 'Fira Code', 'Cascadia Mono', 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
             'serif' => "'Georgia', 'Times New Roman', 'Liberation Serif', serif",
         ];
-        $reportFontStacks = [
-            'medical' => "'IBM Plex Sans', 'Source Sans 3', 'Segoe UI', 'Noto Sans', sans-serif",
-            'legacy' => "'IBM Plex Sans', 'Segoe UI', 'Noto Sans', Arial, sans-serif",
-            'inter' => "'Inter', 'Segoe UI', 'Noto Sans', Arial, sans-serif",
-            'roboto' => "'Roboto', 'Arial', 'Noto Sans', 'Helvetica Neue', sans-serif",
-            'robotic' => "'Orbitron', 'Rajdhani', 'Consolas', 'Lucida Console', 'Courier New', monospace",
-            'mono' => "'JetBrains Mono', 'Fira Code', 'Cascadia Mono', 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-            'serif' => "'Georgia', 'Times New Roman', 'Liberation Serif', serif",
-        ];
+        $reportFontStacks = \App\Support\ReportLayoutSettings::fontStacks();
 
         $currentAppFont = (string) old('app_font_family', $uiAppearance['app_font_family'] ?? 'legacy');
-        $currentReportFont = (string) old('report_font_family', $layout['report_font_family'] ?? 'medical');
+        $currentReportFont = (string) old('report_font_family', $layout['report_font_family'] ?? 'robotic');
         $currentLabelSpacing = round((float) old('label_letter_spacing_em', $uiAppearance['label_letter_spacing_em'] ?? 0.01), 2);
         $spacingPresets = [0.00, 0.02, 0.05];
         $isSpacingCustom = ! in_array($currentLabelSpacing, $spacingPresets, true);
@@ -485,7 +477,7 @@
                         <select name="report_font_family" data-report-font-select>
                             @foreach ($reportFontFamilies as $reportFont)
                                 @php
-                                    $reportStack = $reportFontStacks[$reportFont] ?? $reportFontStacks['medical'];
+                                    $reportStack = $reportFontStacks[$reportFont] ?? $reportFontStacks['robotic'];
                                 @endphp
                                 <option
                                     value="{{ $reportFont }}"
@@ -498,7 +490,7 @@
                         </select>
                     </label>
 
-                    <div class="lms-font-preview" data-font-preview-report style="font-family: {{ $reportFontStacks[$currentReportFont] ?? $reportFontStacks['medical'] }};">
+                    <div class="lms-font-preview" data-font-preview-report style="font-family: {{ $reportFontStacks[$currentReportFont] ?? $reportFontStacks['robotic'] }};">
                         <p class="lms-font-preview-title">{{ __('messages.font_preview_title_pdf') }}</p>
                         <p class="lms-font-preview-sample">{{ __('messages.font_preview_sample') }}</p>
                     </div>
@@ -584,7 +576,7 @@
 
                     <p class="lms-muted" data-pdf-guide-status>{{ __('messages.settings_pdf_structure_ok') }}</p>
 
-                    <div class="lms-pdf-preview-card" data-pdf-preview-card style="font-family: {{ $reportFontStacks[$currentReportFont] ?? $reportFontStacks['medical'] }};">
+                    <div class="lms-pdf-preview-card" data-pdf-preview-card style="font-family: {{ $reportFontStacks[$currentReportFont] ?? $reportFontStacks['robotic'] }};">
                         <div class="lms-pdf-preview-header">
                             <p data-preview-node="lab_name">{{ __('messages.preview_pdf_lab_name') }}</p>
                             <p data-preview-node="lab_meta">{{ __('messages.preview_pdf_lab_meta') }}</p>

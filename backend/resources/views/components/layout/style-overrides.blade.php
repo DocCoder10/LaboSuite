@@ -1,6 +1,7 @@
 @php
     use App\Models\LabSetting;
     use App\Support\LabSettingsDefaults;
+    use App\Support\ReportLayoutSettings;
 
     $clampInt = static fn (int $value, int $min, int $max): int => max($min, min($max, $value));
     $clampFloat = static fn (float $value, float $min, float $max): float => max($min, min($max, $value));
@@ -79,42 +80,25 @@
     }
     $motion = $motionProfiles[$motionProfile];
 
-    $layoutDefaults = LabSettingsDefaults::reportLayout();
-    $layoutRaw = LabSetting::getValue('report_layout', []);
-    if (! is_array($layoutRaw)) {
-        $layoutRaw = [];
-    }
-    $layout = [
-        ...$layoutDefaults,
-        ...$layoutRaw,
-    ];
-
-    $reportFontStacks = [
-        'medical' => "'IBM Plex Sans', 'Source Sans 3', 'Segoe UI', 'Noto Sans', sans-serif",
-        'legacy' => "'IBM Plex Sans', 'Segoe UI', 'Noto Sans', Arial, sans-serif",
-        'inter' => "'Inter', 'Segoe UI', 'Noto Sans', Arial, sans-serif",
-        'roboto' => "'Roboto', 'Arial', 'Noto Sans', 'Helvetica Neue', sans-serif",
-        'robotic' => "'Orbitron', 'Rajdhani', 'Consolas', 'Lucida Console', 'Courier New', monospace",
-        'mono' => "'JetBrains Mono', 'Fira Code', 'Cascadia Mono', 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-        'serif' => "'Georgia', 'Times New Roman', 'Liberation Serif', serif",
-    ];
-    $reportFontKey = (string) ($layout['report_font_family'] ?? $layoutDefaults['report_font_family']);
+    $layout = ReportLayoutSettings::normalize(LabSetting::getValue('report_layout', []));
+    $reportFontStacks = ReportLayoutSettings::fontStacks();
+    $reportFontKey = (string) ($layout['report_font_family'] ?? LabSettingsDefaults::reportLayout()['report_font_family']);
     if (! array_key_exists($reportFontKey, $reportFontStacks)) {
-        $reportFontKey = (string) $layoutDefaults['report_font_family'];
+        $reportFontKey = (string) LabSettingsDefaults::reportLayout()['report_font_family'];
     }
 
-    $reportLabNameSize = $clampInt((int) ($layout['report_lab_name_size_px'] ?? $layoutDefaults['report_lab_name_size_px']), 14, 28);
-    $reportLabMetaSize = $clampInt((int) ($layout['report_lab_meta_size_px'] ?? $layoutDefaults['report_lab_meta_size_px']), 10, 20);
-    $reportTitleSize = $clampInt((int) ($layout['report_title_size_px'] ?? $layoutDefaults['report_title_size_px']), 16, 34);
-    $reportPatientTitleSize = $clampInt((int) ($layout['report_patient_title_size_px'] ?? $layoutDefaults['report_patient_title_size_px']), 11, 20);
-    $reportPatientTextSize = $clampInt((int) ($layout['report_patient_text_size_px'] ?? $layoutDefaults['report_patient_text_size_px']), 10, 18);
-    $reportTableHeaderSize = $clampInt((int) ($layout['report_table_header_size_px'] ?? $layoutDefaults['report_table_header_size_px']), 10, 16);
-    $reportTableBodySize = $clampInt((int) ($layout['report_table_body_size_px'] ?? $layoutDefaults['report_table_body_size_px']), 10, 16);
-    $reportLevel0Size = $clampInt((int) ($layout['report_level0_size_px'] ?? $layoutDefaults['report_level0_size_px']), 12, 20);
-    $reportLevel1Size = $clampInt((int) ($layout['report_level1_size_px'] ?? $layoutDefaults['report_level1_size_px']), 12, 18);
-    $reportLevel2Size = $clampInt((int) ($layout['report_level2_size_px'] ?? $layoutDefaults['report_level2_size_px']), 11, 17);
-    $reportLevel3Size = $clampInt((int) ($layout['report_level3_size_px'] ?? $layoutDefaults['report_level3_size_px']), 10, 16);
-    $reportLeafSize = $clampInt((int) ($layout['report_leaf_size_px'] ?? $layoutDefaults['report_leaf_size_px']), 10, 16);
+    $reportLabNameSize = $clampInt((int) ($layout['report_lab_name_size_px'] ?? 18), 14, 28);
+    $reportLabMetaSize = $clampInt((int) ($layout['report_lab_meta_size_px'] ?? 13), 10, 20);
+    $reportTitleSize = $clampInt((int) ($layout['report_title_size_px'] ?? 20), 16, 34);
+    $reportPatientTitleSize = $clampInt((int) ($layout['report_patient_title_size_px'] ?? 13), 11, 20);
+    $reportPatientTextSize = $clampInt((int) ($layout['report_patient_text_size_px'] ?? 13), 10, 18);
+    $reportTableHeaderSize = $clampInt((int) ($layout['report_table_header_size_px'] ?? 12), 10, 16);
+    $reportTableBodySize = $clampInt((int) ($layout['report_table_body_size_px'] ?? 13), 10, 16);
+    $reportLevel0Size = $clampInt((int) ($layout['report_level0_size_px'] ?? 16), 12, 20);
+    $reportLevel1Size = $clampInt((int) ($layout['report_level1_size_px'] ?? 15), 12, 18);
+    $reportLevel2Size = $clampInt((int) ($layout['report_level2_size_px'] ?? 14), 11, 17);
+    $reportLevel3Size = $clampInt((int) ($layout['report_level3_size_px'] ?? 13), 10, 16);
+    $reportLeafSize = $clampInt((int) ($layout['report_leaf_size_px'] ?? 13), 10, 16);
 @endphp
 
 <style>

@@ -471,7 +471,6 @@ if (!settingsRoot) {
         }
 
         const stack = getSelectedFontStack(reportFontSelect, initialReportFontStack);
-        document.documentElement.style.setProperty('--lms-report-font-family', stack);
         reportFontPreview?.style.setProperty('font-family', stack);
         pdfPreviewCard?.style.setProperty('font-family', stack);
     };

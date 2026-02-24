@@ -36,7 +36,7 @@ class LabSettingsDefaults
             'highlight_abnormal' => true,
             'discipline_title_size' => 'text-xl',
             'category_title_size' => 'text-base',
-            'report_font_family' => 'medical',
+            'report_font_family' => 'robotic',
             'report_lab_name_size_px' => 18,
             'report_lab_meta_size_px' => 13,
             'report_title_size_px' => 20,

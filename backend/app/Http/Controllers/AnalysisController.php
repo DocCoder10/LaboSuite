@@ -11,6 +11,7 @@ use App\Models\LabSetting;
 use App\Models\Patient;
 use App\Models\Subcategory;
 use App\Support\PatientFieldManager;
+use App\Support\ReportLayoutSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -816,7 +817,7 @@ class AnalysisController extends Controller
     private function buildReportViewData(LabAnalysis $analysis): array
     {
         $locale = app()->getLocale();
-        $layout = LabSetting::getValue('report_layout', []);
+        $layout = ReportLayoutSettings::normalize(LabSetting::getValue('report_layout', []));
         $identity = LabSetting::getValue('lab_identity', []);
         $showUnitColumn = (bool) ($layout['show_unit_column'] ?? false);
 

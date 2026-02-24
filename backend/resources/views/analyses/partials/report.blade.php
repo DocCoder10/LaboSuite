@@ -57,9 +57,30 @@
     $normalizeLabel = static fn (?string $value): string => mb_strtolower(trim((string) $value));
     $indentLevel = static fn (int $level): int => max(0, $level);
     $indentStyle = static fn (int $level) => 'padding-left: '.($indentBaseMm + ($indentLevel($level) * $indentStepMm)).'mm;';
+    $reportFontStacks = \App\Support\ReportLayoutSettings::fontStacks();
+    $reportFontKey = (string) ($layout['report_font_family'] ?? \App\Support\LabSettingsDefaults::reportLayout()['report_font_family']);
+    if (! array_key_exists($reportFontKey, $reportFontStacks)) {
+        $reportFontKey = (string) \App\Support\LabSettingsDefaults::reportLayout()['report_font_family'];
+    }
+
+    $reportTypographyInlineStyle = collect([
+        '--lms-report-font-family: '.$reportFontStacks[$reportFontKey],
+        '--lms-report-lab-name-size: '.((int) ($layout['report_lab_name_size_px'] ?? 18)).'px',
+        '--lms-report-lab-meta-size: '.((int) ($layout['report_lab_meta_size_px'] ?? 13)).'px',
+        '--lms-report-title-size: '.((int) ($layout['report_title_size_px'] ?? 20)).'px',
+        '--lms-report-patient-title-size: '.((int) ($layout['report_patient_title_size_px'] ?? 13)).'px',
+        '--lms-report-patient-text-size: '.((int) ($layout['report_patient_text_size_px'] ?? 13)).'px',
+        '--lms-report-table-header-size: '.((int) ($layout['report_table_header_size_px'] ?? 12)).'px',
+        '--lms-report-table-body-size: '.((int) ($layout['report_table_body_size_px'] ?? 13)).'px',
+        '--lms-report-level0-size: '.((int) ($layout['report_level0_size_px'] ?? 16)).'px',
+        '--lms-report-level1-size: '.((int) ($layout['report_level1_size_px'] ?? 15)).'px',
+        '--lms-report-level2-size: '.((int) ($layout['report_level2_size_px'] ?? 14)).'px',
+        '--lms-report-level3-size: '.((int) ($layout['report_level3_size_px'] ?? 13)).'px',
+        '--lms-report-leaf-size: '.((int) ($layout['report_leaf_size_px'] ?? 13)).'px',
+    ])->join('; ');
 @endphp
 
-<article class="lms-card lms-report">
+<article class="lms-card lms-report" style="{{ $reportTypographyInlineStyle }}">
     <header class="lms-report-head">
         @if ($headerInfoPosition === 'center')
             <div class="lms-report-header-grid is-info-center">

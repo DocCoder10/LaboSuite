@@ -128,8 +128,8 @@
 
 .lms-sidebar-link {
     width: 100%;
-    min-height: 50px;
-    border-radius: 14px;
+    min-height: 58px;
+    border-radius: 16px;
     border: 1px solid transparent;
     color: #64748b;
     text-decoration: none;
