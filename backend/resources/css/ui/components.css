@@ -201,8 +201,10 @@
 .lms-field > span,
 .ui-field-label {
     color: #475569;
-    font-size: 0.84rem;
-    font-weight: 600;
+    font-size: var(--lms-label-font-size);
+    font-weight: var(--lms-label-font-weight);
+    letter-spacing: var(--lms-label-letter-spacing);
+    text-transform: var(--lms-label-text-transform);
 }
 
 .ui-select,
@@ -371,10 +373,13 @@
     border: 1px solid rgba(30, 41, 59, 0.22);
     background: rgba(15, 23, 42, 0.92);
     color: #f8fafc;
-    font-size: 0.72rem;
-    line-height: 1;
-    padding: 0.38rem 0.45rem;
-    white-space: nowrap;
+    font-size: 0.74rem;
+    line-height: 1.35;
+    padding: 0.4rem 0.5rem;
+    white-space: normal;
+    max-width: min(34ch, 70vw);
+    min-width: 12ch;
+    text-align: left;
     opacity: 0;
     pointer-events: none;
     transition: opacity 120ms ease, transform 120ms ease;
@@ -466,6 +471,28 @@
     border-color: #93c5fd;
     color: #1d4ed8;
     background: #eff6ff;
+}
+
+.lms-help-dot {
+    width: 1.35rem;
+    height: 1.35rem;
+    border-radius: 999px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #0f172a;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.82rem;
+    line-height: 1;
+    font-weight: 700;
+    cursor: help;
+    box-shadow: var(--ui-shadow-xs);
+}
+
+.lms-help-dot:hover {
+    border-color: #93c5fd;
+    color: #1d4ed8;
 }
 
 @keyframes lms-skeleton-shimmer {

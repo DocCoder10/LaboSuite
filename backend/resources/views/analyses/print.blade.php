@@ -5,6 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>{{ $analysis->analysis_number }}</title>
         @vite(['resources/css/app.css'])
+        @include('components.layout.style-overrides')
     </head>
     <body class="lms-print-body">
         <div class="lms-print-toolbar no-print">

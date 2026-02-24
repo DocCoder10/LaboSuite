@@ -5,6 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>{{ __('messages.app_name') }}</title>
         @vite(['resources/css/app.css', 'resources/js/app.js'])
+        @include('components.layout.style-overrides')
     </head>
     <body class="lms-body">
         @php
@@ -66,6 +67,14 @@
                     </main>
                 </div>
             </div>
+        </div>
+
+        <div class="lms-route-loader" data-route-loader aria-hidden="true">
+            <div class="lms-route-loader-orb">
+                <span class="lms-route-loader-ring"></span>
+                <span class="lms-route-loader-core"></span>
+            </div>
+            <p>{{ __('messages.loading_page') }}</p>
         </div>
     </body>
 </html>

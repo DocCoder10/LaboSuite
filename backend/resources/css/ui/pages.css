@@ -168,9 +168,11 @@
     top: 0;
     z-index: 4;
     background: #f8fafc;
-    font-size: 0.93rem;
+    font-size: calc(var(--lms-label-font-size) * 1.08);
     color: #1e293b;
-    font-weight: 700;
+    font-weight: var(--lms-label-font-weight);
+    letter-spacing: var(--lms-label-letter-spacing);
+    text-transform: var(--lms-label-text-transform);
     border-bottom: 1px solid #dbe5ef;
 }
 
@@ -265,6 +267,148 @@
     padding: 0.75rem;
 }
 
+.lms-font-preview {
+    border: 1px solid #dbe5ef;
+    border-radius: 14px;
+    background: #ffffff;
+    padding: 0.7rem 0.75rem;
+    display: grid;
+    gap: 0.22rem;
+}
+
+.lms-font-preview-title {
+    font-size: 0.8rem;
+    color: #64748b;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.lms-font-preview-sample {
+    font-size: 1rem;
+    color: #0f172a;
+    line-height: 1.45;
+}
+
+.lms-spacing-presets .lms-btn-soft.is-toggled {
+    border-color: #93c5fd;
+    color: #1d4ed8;
+    background: #eff6ff;
+}
+
+.lms-field-note {
+    display: inline-block;
+}
+
+.lms-color-reset-wrap {
+    align-content: end;
+}
+
+.lms-pdf-guide-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.55rem;
+}
+
+.lms-pdf-guide-card {
+    border: 1px solid #dbe5ef;
+    border-radius: 12px;
+    background: #ffffff;
+    padding: 0.58rem 0.62rem;
+    display: grid;
+    gap: 0.2rem;
+}
+
+.lms-pdf-guide-card h5 {
+    margin: 0;
+    font-size: 0.79rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #0f172a;
+}
+
+.lms-pdf-guide-card p {
+    margin: 0;
+    font-size: 0.82rem;
+    color: #475569;
+    line-height: 1.35;
+}
+
+.lms-pdf-preview-card {
+    border: 1px solid #dbe5ef;
+    border-radius: 12px;
+    background: #ffffff;
+    padding: 0.66rem;
+    display: grid;
+    gap: 0.48rem;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.lms-pdf-preview-header {
+    display: grid;
+    gap: 0.14rem;
+}
+
+.lms-pdf-preview-header p {
+    margin: 0;
+    color: #0f172a;
+}
+
+.lms-pdf-preview-main-title {
+    margin: 0.25rem 0 0.1rem;
+    text-align: center;
+    color: #111827;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+}
+
+.lms-pdf-preview-patient {
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #f8fafc;
+    padding: 0.45rem 0.55rem;
+    display: grid;
+    gap: 0.16rem;
+}
+
+.lms-pdf-preview-patient p {
+    margin: 0;
+}
+
+.lms-pdf-preview-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.lms-pdf-preview-table th,
+.lms-pdf-preview-table td {
+    border: 1px solid #dbe5ef;
+    padding: 0.3rem 0.36rem;
+    text-align: left;
+}
+
+.lms-pdf-preview-table th {
+    background: #f1f5f9;
+}
+
+.lms-pdf-preview-table tbody td:first-child {
+    width: 55%;
+}
+
+.lms-pdf-preview-card [data-preview-node] {
+    transition: background-color 140ms ease, box-shadow 140ms ease;
+}
+
+.lms-pdf-preview-card [data-preview-node].is-active {
+    background: #fff7ed;
+    box-shadow: inset 0 0 0 1px #fdba74;
+}
+
+[data-pdf-guide-status].is-adjusted {
+    color: #9a3412;
+    font-weight: 600;
+}
+
 .lms-logo-upload {
     border: 1px dashed #cbd5e1;
     border-radius: 14px;
@@ -325,7 +469,10 @@
 
 .lms-check-group h4 {
     margin: 0 0 0.08rem;
-    font-size: 0.95rem;
+    font-size: calc(var(--lms-label-font-size) * 1.1);
+    font-weight: var(--lms-label-font-weight);
+    letter-spacing: var(--lms-label-letter-spacing);
+    text-transform: var(--lms-label-text-transform);
 }
 
 .lms-check-group .lms-checkbox {

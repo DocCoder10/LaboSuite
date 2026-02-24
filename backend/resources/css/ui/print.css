@@ -1,16 +1,163 @@
-.lms-page-enter {
-    animation: lms-page-enter 320ms var(--ui-transition-ease);
+.lms-app-shell.lms-page-enter,
+body.lms-route-transition-in .lms-app-shell {
+    animation: lms-page-enter var(--lms-route-enter-duration) var(--ui-transition-ease) both;
+}
+
+body.lms-route-transition-out .lms-app-shell {
+    pointer-events: none;
+    animation: lms-page-exit var(--lms-route-exit-duration) var(--ui-transition-ease) forwards;
+}
+
+body.lms-route-transition-in .lms-main > * {
+    animation: lms-content-rise var(--lms-route-enter-duration) var(--ui-transition-ease) both;
+}
+
+body.lms-route-transition-in .lms-main > *:nth-child(2) {
+    animation-delay: 36ms;
+}
+
+body.lms-route-transition-in .lms-main > *:nth-child(3) {
+    animation-delay: 72ms;
+}
+
+body.lms-route-transition-in .lms-main > *:nth-child(4) {
+    animation-delay: 108ms;
+}
+
+body.lms-route-busy {
+    cursor: progress;
+}
+
+body.lms-route-busy .lms-main-area {
+    pointer-events: none;
+}
+
+.lms-route-loader {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    display: grid;
+    align-content: center;
+    justify-items: center;
+    gap: 0.85rem;
+    opacity: 0;
+    pointer-events: none;
+    background:
+        radial-gradient(58% 52% at 50% 38%, rgba(255, 255, 255, 0.85), rgba(248, 250, 252, 0.55)),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.64), rgba(248, 250, 252, 0.58));
+    backdrop-filter: blur(2px);
+    transition: opacity 190ms ease;
+}
+
+.lms-route-loader.is-visible {
+    opacity: 1;
+}
+
+.lms-route-loader p {
+    margin: 0;
+    color: #334155;
+    font-size: 0.84rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+.lms-route-loader-orb {
+    position: relative;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 999px;
+}
+
+.lms-route-loader-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    border: 2px solid rgba(59, 130, 246, 0.22);
+    border-top-color: rgba(59, 130, 246, 0.95);
+    animation: lms-loader-spin 900ms linear infinite;
+}
+
+.lms-route-loader-core {
+    position: absolute;
+    inset: 27%;
+    border-radius: inherit;
+    background: radial-gradient(circle at 35% 35%, #bfdbfe 0%, #3b82f6 72%, #1d4ed8 100%);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.35);
+    animation: lms-loader-pulse 1100ms ease-in-out infinite;
 }
 
 @keyframes lms-page-enter {
     from {
         opacity: 0;
-        transform: translateY(6px);
+        transform: translateY(12px) scale(0.995);
+        filter: blur(2px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        filter: blur(0);
+    }
+}
+
+@keyframes lms-page-exit {
+    from {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        filter: blur(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateY(-8px) scale(0.996);
+        filter: blur(2px);
+    }
+}
+
+@keyframes lms-content-rise {
+    from {
+        opacity: 0;
+        transform: translateY(9px);
     }
 
     to {
         opacity: 1;
         transform: translateY(0);
+    }
+}
+
+@keyframes lms-loader-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes lms-loader-pulse {
+    0%,
+    100% {
+        transform: scale(0.92);
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.32);
+    }
+
+    50% {
+        transform: scale(1);
+        box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lms-app-shell.lms-page-enter,
+    body.lms-route-transition-in .lms-app-shell,
+    body.lms-route-transition-out .lms-app-shell,
+    body.lms-route-transition-in .lms-main > * {
+        animation: none !important;
+    }
+
+    .lms-route-loader,
+    .lms-route-loader-ring,
+    .lms-route-loader-core {
+        transition: none !important;
+        animation: none !important;
     }
 }
 
@@ -23,6 +170,6 @@
 
     body.lms-print-body,
     body.lms-print-body .lms-report {
-        font-family: 'IBM Plex Sans', 'Segoe UI', sans-serif;
+        font-family: var(--lms-report-font-family);
     }
 }

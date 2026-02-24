@@ -758,6 +758,13 @@ li.is-dragging > details > .lms-tree-node {
     vertical-align: top;
 }
 
+.lms-table th {
+    font-size: calc(var(--lms-label-font-size) * 1.08);
+    font-weight: var(--lms-label-font-weight);
+    letter-spacing: var(--lms-label-letter-spacing);
+    text-transform: var(--lms-label-text-transform);
+}
+
 .lms-subheading-row td {
     background: rgba(148, 163, 184, 0.12);
     color: #0f172a;
@@ -931,12 +938,12 @@ li.is-dragging > details > .lms-tree-node {
 }
 
 .lms-report-lab-text h3 {
-    font-size: 1.15rem;
+    font-size: var(--lms-report-lab-name-size);
     font-weight: 800;
 }
 
 .lms-report-lab-text p {
-    font-size: 0.83rem;
+    font-size: var(--lms-report-lab-meta-size);
     color: #334155;
 }
 
@@ -944,6 +951,7 @@ li.is-dragging > details > .lms-tree-node {
     width: 100%;
     max-width: 210mm;
     margin: 0 auto;
+    font-family: var(--lms-report-font-family);
 }
 
 .lms-report-patient-card {
@@ -956,7 +964,7 @@ li.is-dragging > details > .lms-tree-node {
 
 .lms-report-patient-title {
     margin: 0 0 0.45rem;
-    font-size: 0.82rem;
+    font-size: var(--lms-report-patient-title-size);
     letter-spacing: 0.04em;
     font-weight: 800;
     color: #1e293b;
@@ -970,26 +978,26 @@ li.is-dragging > details > .lms-tree-node {
 
 .lms-report-patient-grid p {
     margin: 0;
-    font-size: 0.82rem;
+    font-size: var(--lms-report-patient-text-size);
 }
 
 .lms-report-title {
     margin: 1.05rem 0 0.95rem;
     text-align: center;
-    font-size: 1.22rem;
+    font-size: var(--lms-report-title-size);
     letter-spacing: 0.03em;
     font-weight: 900;
 }
 
 .lms-report-table-single thead th {
     background: #d1d5db;
-    font-size: 0.76rem;
+    font-size: var(--lms-report-table-header-size);
     font-weight: 800;
     letter-spacing: 0.025em;
 }
 
 .lms-report-row td {
-    font-size: 0.83rem;
+    font-size: var(--lms-report-table-body-size);
 }
 
 .lms-report-analysis-cell {
@@ -1003,26 +1011,26 @@ li.is-dragging > details > .lms-tree-node {
 
 .lms-report-row-level-0 td:first-child {
     font-weight: 800;
-    font-size: 0.99rem;
+    font-size: var(--lms-report-level0-size);
 }
 
 .lms-report-row-level-1 td:first-child {
     font-weight: 700;
-    font-size: 0.92rem;
+    font-size: var(--lms-report-level1-size);
 }
 
 .lms-report-row-level-2 td:first-child {
     font-weight: 700;
-    font-size: 0.86rem;
+    font-size: var(--lms-report-level2-size);
 }
 
 .lms-report-row-level-3 td:first-child {
     font-weight: 600;
-    font-size: 0.84rem;
+    font-size: var(--lms-report-level3-size);
 }
 
 .lms-report-row-leaf td:first-child {
-    font-size: 0.82rem;
+    font-size: var(--lms-report-leaf-size);
     font-weight: 500;
 }
 

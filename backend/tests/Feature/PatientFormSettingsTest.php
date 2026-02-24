@@ -7,6 +7,7 @@ use App\Models\Discipline;
 use App\Models\LabAnalysis;
 use App\Models\LabSetting;
 use App\Models\Patient;
+use App\Support\LabSettingsDefaults;
 use App\Support\PatientFieldManager;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -317,6 +318,98 @@ class PatientFormSettingsTest extends TestCase
         $response->assertSee(Storage::disk('public')->url($leftPath), false);
         $response->assertSee('value="180"', false);
         $response->assertSee('value="16"', false);
+    }
+
+    public function test_lab_settings_can_store_typography_controls(): void
+    {
+        $response = $this->put(route('settings.update'), [
+            'section' => 'lab',
+            'name' => 'Laboratoire Typo',
+            'address' => 'Rue 10',
+            'phone' => '70009999',
+            'email' => 'typo@test.local',
+            'header_note' => 'Header',
+            'footer_note' => 'Footer',
+            'header_info_position' => 'center',
+            'header_logo_mode' => 'single_left',
+            'app_font_family' => 'robotic',
+            'ui_font_size_level' => 'comfortable',
+            'label_font_size_px' => 17,
+            'label_font_weight' => '700',
+            'label_letter_spacing_em' => 0.08,
+            'label_text_transform' => 'uppercase',
+            'motion_profile' => 'fluid',
+        ]);
+
+        $response->assertSessionHasNoErrors();
+
+        $uiAppearance = LabSetting::getValue('ui_appearance', []);
+
+        $this->assertSame('robotic', $uiAppearance['app_font_family'] ?? null);
+        $this->assertSame('comfortable', $uiAppearance['ui_font_size_level'] ?? null);
+        $this->assertSame(17, $uiAppearance['label_font_size_px'] ?? null);
+        $this->assertSame('700', (string) ($uiAppearance['label_font_weight'] ?? ''));
+        $this->assertSame(0.08, (float) ($uiAppearance['label_letter_spacing_em'] ?? 0));
+        $this->assertSame('uppercase', $uiAppearance['label_text_transform'] ?? null);
+        $this->assertSame('fluid', $uiAppearance['motion_profile'] ?? null);
+    }
+
+    public function test_each_settings_section_can_be_reset_independently(): void
+    {
+        LabSetting::putValue('lab_identity', [
+            ...LabSettingsDefaults::labIdentity(),
+            'name' => 'Custom Lab Name',
+        ]);
+
+        LabSetting::putValue('ui_appearance', [
+            ...LabSettingsDefaults::uiAppearance(),
+            'app_font_family' => 'robotic',
+            'motion_profile' => 'fluid',
+        ]);
+
+        LabSetting::putValue('report_layout', [
+            ...LabSettingsDefaults::reportLayout(),
+            'report_font_family' => 'robotic',
+            'report_title_size_px' => 30,
+        ]);
+
+        LabSetting::putValue('patient_form', [
+            'identifier_required' => true,
+            'fields' => [
+                ['key' => 'sex', 'label' => 'Sexe', 'type' => 'text', 'active' => false],
+            ],
+        ]);
+
+        $this->put(route('settings.update'), [
+            'section' => 'lab',
+            'action' => 'reset',
+        ])->assertSessionHasNoErrors();
+
+        $resetIdentity = LabSetting::getValue('lab_identity', []);
+        $resetUi = LabSetting::getValue('ui_appearance', []);
+
+        $this->assertSame(LabSettingsDefaults::labIdentity()['name'], $resetIdentity['name'] ?? null);
+        $this->assertSame(LabSettingsDefaults::uiAppearance()['app_font_family'], $resetUi['app_font_family'] ?? null);
+
+        $this->put(route('settings.update'), [
+            'section' => 'pdf',
+            'action' => 'reset',
+        ])->assertSessionHasNoErrors();
+
+        $resetLayout = LabSetting::getValue('report_layout', []);
+        $this->assertSame(LabSettingsDefaults::reportLayout()['report_font_family'], $resetLayout['report_font_family'] ?? null);
+        $this->assertSame(LabSettingsDefaults::reportLayout()['report_title_size_px'], $resetLayout['report_title_size_px'] ?? null);
+
+        $this->put(route('settings.update'), [
+            'section' => 'patient',
+            'action' => 'reset',
+        ])->assertSessionHasNoErrors();
+
+        $resetPatientForm = PatientFieldManager::resolved(LabSetting::getValue('patient_form', []));
+        $this->assertFalse((bool) ($resetPatientForm['identifier_required'] ?? true));
+
+        $sexField = collect($resetPatientForm['fields'])->first(fn (array $field) => ($field['key'] ?? '') === 'sex');
+        $this->assertTrue((bool) ($sexField['active'] ?? false));
     }
 
     private function createCategory(): Category
