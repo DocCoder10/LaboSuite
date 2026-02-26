@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Offline desktop Laboratory Management System",
   "main": "main.js",
-  "author": "LaboSuite",
+  "author": "DocCoder10",
   "license": "MIT",
   "scripts": {
     "start": "electron .",
@@ -42,8 +42,10 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "runAfterFinish": true,
+      "include": "build/installer.nsh"
     },
     "win": {
       "target": [

@@ -54,6 +54,10 @@ function resolvePhpBinary() {
     return path.join(process.resourcesPath, 'runtime', 'php', 'bin', 'php');
 }
 
+function getInstallerProfilePath() {
+    return path.join(process.resourcesPath, 'installer', 'profile.ini');
+}
+
 function checkPort(port) {
     return new Promise((resolve) => {
         const socket = new net.Socket();
@@ -189,6 +193,25 @@ async function runArtisan(phpBin, backendPath, args, backendEnv) {
     });
 }
 
+async function applyInstallerProfileIfAvailable(phpBin, backendPath, backendEnv) {
+    if (!app.isPackaged) {
+        return;
+    }
+
+    const profilePath = getInstallerProfilePath();
+
+    if (!fs.existsSync(profilePath)) {
+        return;
+    }
+
+    try {
+        await runArtisan(phpBin, backendPath, ['lms:apply-installer-profile', profilePath], backendEnv);
+    } catch (error) {
+        // Do not block startup: users can still update identity fields from settings.
+        console.warn(`Failed to apply installer profile (${profilePath}):`, error);
+    }
+}
+
 async function startBackend() {
     const backendPath = getBackendPath();
     const phpBin = resolvePhpBinary();
@@ -213,6 +236,8 @@ async function startBackend() {
     if (runtimeState.shouldBootstrapSeed) {
         await runArtisan(phpBin, backendPath, ['db:seed', '--force'], backendEnv);
     }
+
+    await applyInstallerProfileIfAvailable(phpBin, backendPath, backendEnv);
 
     backendProcess = spawn(
         phpBin,

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="300" viewBox="0 0 900 300" role="img" aria-label="LaboSuite LMS">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#e0f2fe"/>
+      <stop offset="100%" stop-color="#dbeafe"/>
+    </linearGradient>
+    <linearGradient id="chip" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0ea5e9"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="900" height="300" rx="28" fill="url(#bg)"/>
+  <rect x="40" y="40" width="220" height="220" rx="26" fill="url(#chip)"/>
+  <path d="M150 85 v130 M85 150 h130" stroke="#ffffff" stroke-width="22" stroke-linecap="round"/>
+  <text x="300" y="142" fill="#0f172a" font-size="74" font-family="Segoe UI, Arial, sans-serif" font-weight="700">LaboSuite</text>
+  <text x="302" y="205" fill="#1e3a8a" font-size="42" font-family="Segoe UI, Arial, sans-serif" font-weight="600">Laboratory Management System</text>
+</svg>
