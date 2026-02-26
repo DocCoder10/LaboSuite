@@ -2,11 +2,14 @@
 
 use App\Models\Category;
 use App\Models\Discipline;
+use App\Models\LabSetting;
 use App\Models\LabParameter;
 use App\Models\Subcategory;
+use App\Support\LabSettingsDefaults;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 Artisan::command('inspire', function () {
@@ -185,6 +188,247 @@ Artisan::command('lms:import-legacy-analyses {path : Absolute or relative path t
 
     return 0;
 })->purpose('Import legacy Python analyses.json into LMS catalog');
+
+Artisan::command('lms:apply-installer-profile {path : Absolute or relative path to installer profile ini}', function () {
+    $pathInput = trim((string) $this->argument('path'));
+    if ($pathInput === '') {
+        $this->error('Installer profile path is required.');
+
+        return 1;
+    }
+
+    $isAbsolute = str_starts_with($pathInput, DIRECTORY_SEPARATOR)
+        || preg_match('/^[A-Za-z]:[\/\\\\]/', $pathInput) === 1;
+
+    $path = $isAbsolute ? $pathInput : base_path($pathInput);
+
+    if (! is_file($path)) {
+        $this->error("Installer profile not found: {$path}");
+
+        return 1;
+    }
+
+    $profileHash = sha1_file($path) ?: '';
+    $bootstrapMeta = LabSetting::getValue('installer_bootstrap', []);
+    if (
+        is_array($bootstrapMeta)
+        && $profileHash !== ''
+        && (string) ($bootstrapMeta['profile_hash'] ?? '') === $profileHash
+    ) {
+        $this->info('Installer profile already applied for this database.');
+
+        return 0;
+    }
+
+    $profile = parse_ini_file($path, true, INI_SCANNER_RAW);
+    if (! is_array($profile)) {
+        $this->error('Invalid installer profile format.');
+
+        return 1;
+    }
+
+    $identityInput = $profile['identity'] ?? [];
+    if (! is_array($identityInput)) {
+        $identityInput = [];
+    }
+
+    $defaults = LabSettingsDefaults::labIdentity();
+    $existingIdentity = LabSetting::getValue('lab_identity', []);
+    if (! is_array($existingIdentity)) {
+        $existingIdentity = [];
+    }
+
+    $baseIdentity = [
+        ...$defaults,
+        ...$existingIdentity,
+    ];
+
+    $normalize = static fn (mixed $value): string => trim((string) $value);
+
+    $name = $normalize($identityInput['name'] ?? '');
+    $address = $normalize($identityInput['address'] ?? '');
+    $headerServices = $normalize($identityInput['header_services'] ?? '');
+    $phone = $normalize($identityInput['phone'] ?? '');
+    $email = $normalize($identityInput['email'] ?? '');
+
+    if ($name === '' || $address === '') {
+        $this->error('Installer profile missing required name/address values.');
+
+        return 1;
+    }
+
+    if ($headerServices === '') {
+        $headerServices = $normalize($defaults['header_note'] ?? 'Analyses medicales - Medecine Generale - Medecine specialisee');
+    }
+
+    if ($phone === '') {
+        $phone = '+223-00-00-00-00';
+    }
+
+    $logoPathInput = $normalize($identityInput['logo_path'] ?? '');
+    $logoStoredPath = $normalize($baseIdentity['logo_left_path'] ?? '');
+    $resolvedLogoSize = (int) ($baseIdentity['header_logo_size_px'] ?? 140);
+
+    if ($logoPathInput !== '' && is_file($logoPathInput)) {
+        $extension = strtolower(pathinfo($logoPathInput, PATHINFO_EXTENSION));
+        $allowedExtensions = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg', 'avif', 'tiff', 'ico'];
+        if (! in_array($extension, $allowedExtensions, true)) {
+            $extension = 'png';
+        }
+
+        $content = file_get_contents($logoPathInput);
+        if ($content !== false) {
+            $target = 'lab-logos/setup-'.substr(sha1($logoPathInput.'|'.$profileHash), 0, 20).'.'.$extension;
+            Storage::disk('public')->put($target, $content);
+            $logoStoredPath = $target;
+        }
+
+        $dimensions = lms_resolve_logo_dimensions($logoPathInput);
+        if (is_array($dimensions) && isset($dimensions[0], $dimensions[1])) {
+            $width = max(1, (int) $dimensions[0]);
+            $height = max(1, (int) $dimensions[1]);
+            $ratio = $width / $height;
+            $resolvedLogoSize = lms_resolve_logo_size_from_ratio($ratio);
+        }
+    }
+
+    $resolvedLogoSize = max(96, min(240, $resolvedLogoSize));
+
+    $identity = [
+        ...$baseIdentity,
+        'name' => $name,
+        'address' => $address,
+        'phone' => $phone,
+        'email' => $email,
+        'header_note' => $headerServices,
+        'header_info_position' => in_array((string) ($baseIdentity['header_info_position'] ?? 'center'), ['left', 'center', 'right'], true)
+            ? (string) $baseIdentity['header_info_position']
+            : 'center',
+        'header_logo_mode' => in_array((string) ($baseIdentity['header_logo_mode'] ?? 'single_left'), ['single_left', 'single_right', 'both_distinct', 'both_same'], true)
+            ? (string) $baseIdentity['header_logo_mode']
+            : 'single_left',
+        'header_logo_size_px' => $resolvedLogoSize,
+        'header_logo_position_left' => in_array((string) ($baseIdentity['header_logo_position_left'] ?? 'center'), ['left', 'center', 'right'], true)
+            ? (string) $baseIdentity['header_logo_position_left']
+            : 'center',
+        'header_logo_position_right' => in_array((string) ($baseIdentity['header_logo_position_right'] ?? 'center'), ['left', 'center', 'right'], true)
+            ? (string) $baseIdentity['header_logo_position_right']
+            : 'center',
+        'header_vertical_align' => in_array((string) ($baseIdentity['header_vertical_align'] ?? 'center'), ['top', 'center'], true)
+            ? (string) $baseIdentity['header_vertical_align']
+            : 'center',
+        'header_info_line_height' => round(max(1.05, min(1.80, (float) ($baseIdentity['header_info_line_height'] ?? 1.30))), 2),
+        'header_info_row_gap_rem' => round(max(0, min(0.80, (float) ($baseIdentity['header_info_row_gap_rem'] ?? 0.16))), 2),
+        'header_name_text_transform' => in_array((string) ($baseIdentity['header_name_text_transform'] ?? 'capitalize'), ['none', 'capitalize', 'uppercase', 'lowercase'], true)
+            ? (string) $baseIdentity['header_name_text_transform']
+            : 'capitalize',
+        'header_meta_text_transform' => in_array((string) ($baseIdentity['header_meta_text_transform'] ?? 'capitalize'), ['none', 'capitalize', 'uppercase', 'lowercase'], true)
+            ? (string) $baseIdentity['header_meta_text_transform']
+            : 'capitalize',
+        'logo_left_path' => $logoStoredPath !== '' ? $logoStoredPath : null,
+        'logo_right_path' => null,
+    ];
+
+    LabSetting::putValue('lab_identity', $identity);
+    LabSetting::putValue('installer_bootstrap', [
+        'profile_hash' => $profileHash,
+        'developer' => 'DocCoder10',
+        'applied_at' => now()->toIso8601String(),
+    ]);
+
+    $this->info('Installer profile applied successfully.');
+    $this->line('Developer: DocCoder10');
+
+    return 0;
+})->purpose('Apply setup wizard data captured by the Windows installer');
+
+if (! function_exists('lms_resolve_logo_dimensions')) {
+    /**
+     * @return array{0: int, 1: int}|null
+     */
+    function lms_resolve_logo_dimensions(string $path): ?array
+    {
+        $dimensions = @getimagesize($path);
+        if (is_array($dimensions) && isset($dimensions[0], $dimensions[1])) {
+            return [
+                max(1, (int) $dimensions[0]),
+                max(1, (int) $dimensions[1]),
+            ];
+        }
+
+        if (strtolower(pathinfo($path, PATHINFO_EXTENSION)) !== 'svg') {
+            return null;
+        }
+
+        $content = file_get_contents($path);
+        if (! is_string($content) || $content === '') {
+            return null;
+        }
+
+        if (preg_match('/viewBox\s*=\s*["\']\s*[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?\s+[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?\s+([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)\s+([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)\s*["\']/i', $content, $matches) === 1) {
+            $width = (int) round((float) $matches[1]);
+            $height = (int) round((float) $matches[2]);
+
+            if ($width > 0 && $height > 0) {
+                return [$width, $height];
+            }
+        }
+
+        $extractSvgDimension = static function (string $attribute) use ($content): ?float {
+            $pattern = '/(?:^|[\s<])'.preg_quote($attribute, '/').'\s*=\s*["\']\s*([-+]?\d*\.?\d+)(?:px)?\s*["\']/i';
+            if (preg_match($pattern, $content, $matches) !== 1) {
+                return null;
+            }
+
+            return (float) $matches[1];
+        };
+
+        $width = $extractSvgDimension('width');
+        $height = $extractSvgDimension('height');
+
+        if ($width === null || $height === null) {
+            return null;
+        }
+
+        $resolvedWidth = (int) round($width);
+        $resolvedHeight = (int) round($height);
+
+        if ($resolvedWidth <= 0 || $resolvedHeight <= 0) {
+            return null;
+        }
+
+        return [$resolvedWidth, $resolvedHeight];
+    }
+}
+
+if (! function_exists('lms_resolve_logo_size_from_ratio')) {
+    function lms_resolve_logo_size_from_ratio(float $ratio): int
+    {
+        $safeRatio = max(0.70, min(4.20, $ratio));
+
+        if ($safeRatio >= 3.10) {
+            return 182;
+        }
+
+        if ($safeRatio >= 2.60) {
+            return 174;
+        }
+
+        if ($safeRatio >= 2.10) {
+            return 164;
+        }
+
+        if ($safeRatio >= 1.60) {
+            return 154;
+        }
+
+        if ($safeRatio >= 1.20) {
+            return 146;
+        }
+
+        return 136;
+    }
+}
 
 /**
  * @param callable(string):bool $exists

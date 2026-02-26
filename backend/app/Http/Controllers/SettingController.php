@@ -22,6 +22,8 @@ class SettingController extends Controller
     private const HEADER_INFO_POSITIONS = ['left', 'center', 'right'];
     private const HEADER_LOGO_MODES = ['single_left', 'single_right', 'both_distinct', 'both_same'];
     private const HEADER_LOGO_POSITIONS = ['left', 'center', 'right'];
+    private const HEADER_VERTICAL_ALIGNS = ['top', 'center'];
+    private const HEADER_TEXT_TRANSFORMS = ['none', 'capitalize', 'uppercase', 'lowercase'];
     private const APP_FONT_FAMILIES = ['legacy', 'inter', 'roboto', 'medical', 'robotic', 'mono', 'serif'];
     private const UI_FONT_SIZE_LEVELS = ['compact', 'standard', 'comfortable'];
     private const LABEL_FONT_WEIGHTS = ['500', '600', '700'];
@@ -49,6 +51,8 @@ class SettingController extends Controller
                 'label_text_transforms' => self::LABEL_TEXT_TRANSFORMS,
                 'motion_profiles' => self::MOTION_PROFILES,
                 'report_font_families' => ReportLayoutSettings::REPORT_FONT_FAMILIES,
+                'header_vertical_aligns' => self::HEADER_VERTICAL_ALIGNS,
+                'header_text_transforms' => self::HEADER_TEXT_TRANSFORMS,
             ],
         ]);
     }
@@ -81,6 +85,11 @@ class SettingController extends Controller
                 'header_logo_size_px' => ['nullable', 'integer', 'min:96', 'max:240'],
                 'header_logo_position_left' => ['nullable', Rule::in(self::HEADER_LOGO_POSITIONS)],
                 'header_logo_position_right' => ['nullable', Rule::in(self::HEADER_LOGO_POSITIONS)],
+                'header_vertical_align' => ['nullable', Rule::in(self::HEADER_VERTICAL_ALIGNS)],
+                'header_info_line_height' => ['nullable', 'numeric', 'min:1.05', 'max:1.80'],
+                'header_info_row_gap_rem' => ['nullable', 'numeric', 'min:0', 'max:0.80'],
+                'header_name_text_transform' => ['nullable', Rule::in(self::HEADER_TEXT_TRANSFORMS)],
+                'header_meta_text_transform' => ['nullable', Rule::in(self::HEADER_TEXT_TRANSFORMS)],
                 'logo_left' => ['nullable', 'file', 'mimetypes:image/jpeg,image/png,image/gif,image/bmp,image/webp,image/svg+xml,image/avif,image/tiff,image/x-icon,image/vnd.microsoft.icon', 'max:8192'],
                 'logo_right' => ['nullable', 'file', 'mimetypes:image/jpeg,image/png,image/gif,image/bmp,image/webp,image/svg+xml,image/avif,image/tiff,image/x-icon,image/vnd.microsoft.icon', 'max:8192'],
                 'remove_logo_left' => ['nullable', 'boolean'],
@@ -128,6 +137,31 @@ class SettingController extends Controller
             $logoSizePx = $this->normalizeLogoSize((int) ($data['header_logo_size_px'] ?? 170));
             $positionLeft = $this->normalizeLogoPosition((string) ($data['header_logo_position_left'] ?? 'center'));
             $positionRight = $this->normalizeLogoPosition((string) ($data['header_logo_position_right'] ?? 'center'));
+            $verticalAlign = $this->normalizeHeaderVerticalAlign(
+                (string) ($data['header_vertical_align'] ?? ($identity['header_vertical_align'] ?? 'center'))
+            );
+            $lineHeight = round(
+                $this->clampFloat(
+                    (float) ($data['header_info_line_height'] ?? ($identity['header_info_line_height'] ?? 1.30)),
+                    1.05,
+                    1.80
+                ),
+                2
+            );
+            $lineGap = round(
+                $this->clampFloat(
+                    (float) ($data['header_info_row_gap_rem'] ?? ($identity['header_info_row_gap_rem'] ?? 0.16)),
+                    0,
+                    0.80
+                ),
+                2
+            );
+            $nameTextTransform = $this->normalizeHeaderTextTransform(
+                (string) ($data['header_name_text_transform'] ?? ($identity['header_name_text_transform'] ?? 'capitalize'))
+            );
+            $metaTextTransform = $this->normalizeHeaderTextTransform(
+                (string) ($data['header_meta_text_transform'] ?? ($identity['header_meta_text_transform'] ?? 'capitalize'))
+            );
 
             LabSetting::putValue('lab_identity', [
                 'name' => $data['name'],
@@ -141,6 +175,11 @@ class SettingController extends Controller
                 'header_logo_size_px' => $logoSizePx,
                 'header_logo_position_left' => $positionLeft,
                 'header_logo_position_right' => $positionRight,
+                'header_vertical_align' => $verticalAlign,
+                'header_info_line_height' => $lineHeight,
+                'header_info_row_gap_rem' => $lineGap,
+                'header_name_text_transform' => $nameTextTransform,
+                'header_meta_text_transform' => $metaTextTransform,
                 'logo_left_path' => $leftPath !== '' ? $leftPath : null,
                 'logo_right_path' => $rightPath !== '' ? $rightPath : null,
             ]);
@@ -247,6 +286,11 @@ class SettingController extends Controller
         $legacyRightOffset = (int) ($identity['header_logo_offset_x_right'] ?? 0);
         $leftPosition = (string) ($identity['header_logo_position_left'] ?? $this->legacyOffsetToLogoPosition($legacyLeftOffset));
         $rightPosition = (string) ($identity['header_logo_position_right'] ?? $this->legacyOffsetToLogoPosition($legacyRightOffset));
+        $verticalAlign = $this->normalizeHeaderVerticalAlign((string) ($identity['header_vertical_align'] ?? ($defaults['header_vertical_align'] ?? 'center')));
+        $lineHeight = round($this->clampFloat((float) ($identity['header_info_line_height'] ?? ($defaults['header_info_line_height'] ?? 1.30)), 1.05, 1.80), 2);
+        $lineGap = round($this->clampFloat((float) ($identity['header_info_row_gap_rem'] ?? ($defaults['header_info_row_gap_rem'] ?? 0.16)), 0, 0.80), 2);
+        $nameTextTransform = $this->normalizeHeaderTextTransform((string) ($identity['header_name_text_transform'] ?? ($defaults['header_name_text_transform'] ?? 'capitalize')));
+        $metaTextTransform = $this->normalizeHeaderTextTransform((string) ($identity['header_meta_text_transform'] ?? ($defaults['header_meta_text_transform'] ?? 'capitalize')));
 
         return [
             'name' => (string) ($identity['name'] ?? $defaults['name'] ?? ''),
@@ -260,6 +304,11 @@ class SettingController extends Controller
             'header_logo_size_px' => $this->normalizeLogoSize((int) ($identity['header_logo_size_px'] ?? $defaults['header_logo_size_px'] ?? 170)),
             'header_logo_position_left' => $this->normalizeLogoPosition($leftPosition),
             'header_logo_position_right' => $this->normalizeLogoPosition($rightPosition),
+            'header_vertical_align' => $verticalAlign,
+            'header_info_line_height' => $lineHeight,
+            'header_info_row_gap_rem' => $lineGap,
+            'header_name_text_transform' => $nameTextTransform,
+            'header_meta_text_transform' => $metaTextTransform,
             'logo_left_path' => $leftLogo !== '' ? $leftLogo : null,
             'logo_right_path' => $rightLogo !== '' ? $rightLogo : null,
         ];
@@ -356,6 +405,16 @@ class SettingController extends Controller
     private function normalizeLogoPosition(string $position): string
     {
         return in_array($position, self::HEADER_LOGO_POSITIONS, true) ? $position : 'center';
+    }
+
+    private function normalizeHeaderVerticalAlign(string $align): string
+    {
+        return in_array($align, self::HEADER_VERTICAL_ALIGNS, true) ? $align : 'center';
+    }
+
+    private function normalizeHeaderTextTransform(string $transform): string
+    {
+        return in_array($transform, self::HEADER_TEXT_TRANSFORMS, true) ? $transform : 'capitalize';
     }
 
     private function legacyOffsetToLogoPosition(int $offset): string

@@ -64,6 +64,28 @@
     $logoJustifyLeft = $resolveJustify($logoPositionLeft);
     $logoJustifyRight = $resolveJustify($logoPositionRight);
 
+    $resolveHeaderGridAlign = static fn (string $position): string => $position === 'top' ? 'start' : 'center';
+    $resolveHeaderFlexAlign = static fn (string $position): string => $position === 'top' ? 'flex-start' : 'center';
+    $headerVerticalAlign = (string) ($identity['header_vertical_align'] ?? 'center');
+    if (! in_array($headerVerticalAlign, ['top', 'center'], true)) {
+        $headerVerticalAlign = 'center';
+    }
+    $headerGridAlign = $resolveHeaderGridAlign($headerVerticalAlign);
+    $headerFlexAlign = $resolveHeaderFlexAlign($headerVerticalAlign);
+
+    $headerInfoLineHeight = max(1.05, min(1.80, (float) ($identity['header_info_line_height'] ?? 1.30)));
+    $headerInfoGapRem = max(0, min(0.80, (float) ($identity['header_info_row_gap_rem'] ?? 0.16)));
+
+    $normalizeTextTransform = static function (mixed $value): string {
+        $resolved = is_string($value) ? $value : 'capitalize';
+
+        return in_array($resolved, ['none', 'capitalize', 'uppercase', 'lowercase'], true)
+            ? $resolved
+            : 'capitalize';
+    };
+    $headerNameTransform = $normalizeTextTransform($identity['header_name_text_transform'] ?? 'capitalize');
+    $headerMetaTransform = $normalizeTextTransform($identity['header_meta_text_transform'] ?? 'capitalize');
+
     if ($headerLogoMode === 'single_left') {
         $displayLeftLogo = $leftLogoSrc !== '' ? $leftLogoSrc : $rightLogoSrc;
     } elseif ($headerLogoMode === 'single_right') {
@@ -89,6 +111,12 @@
     $reportTypographyInlineStyle = collect([
         '--lms-report-font-family: '.$reportFontStacks[$reportFontKey],
         '--lms-logo-slot-width: '.$logoSlotWidthPx.'px',
+        '--lms-report-header-grid-align: '.$headerGridAlign,
+        '--lms-report-header-flex-align: '.$headerFlexAlign,
+        '--lms-report-header-line-height: '.number_format($headerInfoLineHeight, 2, '.', ''),
+        '--lms-report-header-row-gap: '.number_format($headerInfoGapRem, 2, '.', '').'rem',
+        '--lms-report-header-name-transform: '.$headerNameTransform,
+        '--lms-report-header-meta-transform: '.$headerMetaTransform,
         '--lms-report-lab-name-size: '.((int) ($layout['report_lab_name_size_px'] ?? 18)).'px',
         '--lms-report-lab-meta-size: '.((int) ($layout['report_lab_meta_size_px'] ?? 13)).'px',
         '--lms-report-title-size: '.((int) ($layout['report_title_size_px'] ?? 20)).'px',

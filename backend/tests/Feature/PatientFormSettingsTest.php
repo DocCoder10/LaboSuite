@@ -285,6 +285,36 @@ class PatientFormSettingsTest extends TestCase
         $this->assertSame('single_left', $identity['header_logo_mode'] ?? null);
     }
 
+    public function test_lab_settings_can_store_header_info_style_controls(): void
+    {
+        $response = $this->put(route('settings.update'), [
+            'section' => 'lab',
+            'name' => 'Laboratoire Style',
+            'address' => 'Rue 10',
+            'phone' => '70001111',
+            'email' => 'style@test.local',
+            'header_note' => 'Note header',
+            'footer_note' => 'Note footer',
+            'header_info_position' => 'center',
+            'header_logo_mode' => 'single_left',
+            'header_vertical_align' => 'top',
+            'header_info_line_height' => 1.45,
+            'header_info_row_gap_rem' => 0.30,
+            'header_name_text_transform' => 'capitalize',
+            'header_meta_text_transform' => 'lowercase',
+        ]);
+
+        $response->assertSessionHasNoErrors();
+
+        $identity = LabSetting::getValue('lab_identity', []);
+
+        $this->assertSame('top', $identity['header_vertical_align'] ?? null);
+        $this->assertSame(1.45, (float) ($identity['header_info_line_height'] ?? 0));
+        $this->assertSame(0.30, (float) ($identity['header_info_row_gap_rem'] ?? 0));
+        $this->assertSame('capitalize', $identity['header_name_text_transform'] ?? null);
+        $this->assertSame('lowercase', $identity['header_meta_text_transform'] ?? null);
+    }
+
     public function test_lab_settings_are_rendered_from_persisted_storage_on_settings_page(): void
     {
         Storage::fake('public');

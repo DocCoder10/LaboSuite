@@ -870,7 +870,7 @@ li.is-dragging > details > .lms-tree-node {
 
 .lms-report-header-grid {
     display: grid;
-    align-items: stretch;
+    align-items: var(--lms-report-header-grid-align, center);
     gap: 0.9rem;
 }
 
@@ -886,10 +886,10 @@ li.is-dragging > details > .lms-tree-node {
 .lms-report-logo-slot {
     min-height: 0;
     display: flex;
-    align-items: center;
+    align-items: var(--lms-report-header-flex-align, center);
     justify-content: var(--lms-logo-justify, center);
     overflow: hidden;
-    align-self: stretch;
+    align-self: var(--lms-report-header-grid-align, center);
 }
 
 .lms-report-logo-slot.is-empty {
@@ -914,7 +914,8 @@ li.is-dragging > details > .lms-tree-node {
 
 .lms-report-lab-text {
     display: grid;
-    gap: 0.2rem;
+    gap: var(--lms-report-header-row-gap, 0.16rem);
+    line-height: var(--lms-report-header-line-height, 1.30);
 }
 
 .lms-report-lab-text-left {
@@ -932,11 +933,15 @@ li.is-dragging > details > .lms-tree-node {
 .lms-report-lab-text h3 {
     font-size: var(--lms-report-lab-name-size);
     font-weight: 800;
+    text-transform: var(--lms-report-header-name-transform, capitalize);
+    line-height: inherit;
 }
 
 .lms-report-lab-text p {
     font-size: var(--lms-report-lab-meta-size);
     color: #334155;
+    text-transform: var(--lms-report-header-meta-transform, capitalize);
+    line-height: inherit;
 }
 
 .lms-report {

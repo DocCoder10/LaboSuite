@@ -74,7 +74,7 @@ ELECTRON_OZONE_PLATFORM_HINT=x11 npm run start
 
 Electron will:
 1. Ensure SQLite + Laravel storage paths exist
-2. Run `php artisan migrate --force --seed`
+2. Run `php artisan migrate --force` (and `db:seed --force` only on a fresh DB)
 3. Start Laravel local server
 4. Open desktop window
 
@@ -109,6 +109,25 @@ npm run pack
 ```
 
 Generated installer: `app/dist/LaboSuite-LMS-Setup-<version>.exe`
+
+### Installer Wizard Behavior (Windows)
+- Setup includes a custom identity page with:
+  - `Nom de la structure` (required)
+  - `Adresse` (required)
+  - `Nom entete / services` (optional, default: `Analyses medicales - Medecine Generale - Medecine specialisee`)
+  - `Telephone` (optional, default: `+223-00-00-00-00`)
+  - `Email` (optional)
+  - `Logo` (optional)
+- Developer mention is shown in setup: `Developpe par DocCoder10`.
+- Logo recommendation shown in setup:
+  - transparent `PNG` or `SVG`
+  - horizontal ratio `3:1`
+  - ideal source size `1200x400` (minimum `900x300`)
+- If another logo format/ratio is uploaded, the app auto-adapts display size on first launch.
+- If no logo is selected, a bundled default logo is applied automatically.
+- Desktop shortcut is always created by installer.
+- Finish page keeps app launch enabled (`run after finish`) by default.
+- First app launch reads installer profile and applies it through `php artisan lms:apply-installer-profile`.
 
 ## Notes
 - This repo now has a production-oriented scaffold, but not yet full admin CRUD edit/delete for all catalog entities.

@@ -27,6 +27,8 @@
         $labelTextTransforms = $uiOptions['label_text_transforms'] ?? [];
         $motionProfiles = $uiOptions['motion_profiles'] ?? [];
         $reportFontFamilies = $uiOptions['report_font_families'] ?? [];
+        $headerVerticalAligns = $uiOptions['header_vertical_aligns'] ?? [];
+        $headerTextTransforms = $uiOptions['header_text_transforms'] ?? [];
 
         $appFontStacks = [
             'legacy' => "'Inter', 'IBM Plex Sans', 'Segoe UI', 'Noto Sans', 'Helvetica Neue', Arial, sans-serif",
@@ -139,6 +141,74 @@
                                 </select>
                             </label>
                         </div>
+
+                        @php
+                            $selectedVerticalAlign = (string) old('header_vertical_align', $identity['header_vertical_align'] ?? 'center');
+                            $resolvedLineHeight = round((float) old('header_info_line_height', $identity['header_info_line_height'] ?? 1.30), 2);
+                            $resolvedLineGap = round((float) old('header_info_row_gap_rem', $identity['header_info_row_gap_rem'] ?? 0.16), 2);
+                            $selectedNameTransform = (string) old('header_name_text_transform', $identity['header_name_text_transform'] ?? 'capitalize');
+                            $selectedMetaTransform = (string) old('header_meta_text_transform', $identity['header_meta_text_transform'] ?? 'capitalize');
+                        @endphp
+
+                        <div class="lms-grid-3">
+                            <label class="lms-field">
+                                <span>{{ __('messages.header_vertical_align') }}</span>
+                                <select name="header_vertical_align">
+                                    @foreach ($headerVerticalAligns as $verticalAlign)
+                                        <option value="{{ $verticalAlign }}" @selected($selectedVerticalAlign === $verticalAlign)>
+                                            {{ __('messages.position_'.$verticalAlign) }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </label>
+                            <label class="lms-field">
+                                <span>{{ __('messages.header_info_line_height') }}</span>
+                                <input
+                                    type="number"
+                                    min="1.05"
+                                    max="1.80"
+                                    step="0.05"
+                                    name="header_info_line_height"
+                                    value="{{ number_format($resolvedLineHeight, 2, '.', '') }}"
+                                >
+                            </label>
+                            <label class="lms-field">
+                                <span>{{ __('messages.header_info_gap_rem') }}</span>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="0.80"
+                                    step="0.02"
+                                    name="header_info_row_gap_rem"
+                                    value="{{ number_format($resolvedLineGap, 2, '.', '') }}"
+                                >
+                            </label>
+                        </div>
+
+                        <div class="lms-grid-2">
+                            <label class="lms-field">
+                                <span>{{ __('messages.header_name_text_transform') }}</span>
+                                <select name="header_name_text_transform">
+                                    @foreach ($headerTextTransforms as $transform)
+                                        <option value="{{ $transform }}" @selected($selectedNameTransform === $transform)>
+                                            {{ __('messages.text_transform_'.$transform) }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </label>
+                            <label class="lms-field">
+                                <span>{{ __('messages.header_meta_text_transform') }}</span>
+                                <select name="header_meta_text_transform">
+                                    @foreach ($headerTextTransforms as $transform)
+                                        <option value="{{ $transform }}" @selected($selectedMetaTransform === $transform)>
+                                            {{ __('messages.text_transform_'.$transform) }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </label>
+                        </div>
+
+                        <p class="lms-muted">{{ __('messages.settings_header_info_style_help') }}</p>
 
                         <div class="lms-grid-3">
                             <label class="lms-field">
