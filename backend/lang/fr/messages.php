@@ -183,7 +183,7 @@ return [
     'lab_address' => 'Adresse',
     'lab_phone' => 'Telephone',
     'lab_email' => 'Email',
-    'header_note' => 'Note en-tete',
+    'header_note' => 'Note en-tete (ou service disponibles)',
     'footer_note' => 'Note pied de page',
     'header_info_position' => 'Position bloc infos',
     'header_logo_mode' => 'Disposition logos',
